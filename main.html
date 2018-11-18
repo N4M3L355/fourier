@@ -50,6 +50,7 @@
 				this.indexToHz = i => i * (this.samplingFrequency / 2) / this.fourierPoints;
 				this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
 				this.datapoints = [];
+				this.tonalAmps = [];
 				this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
 				this.getInterpolatedAmp = (hz) => {
 					return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
@@ -59,7 +60,7 @@
 			}
 
 			spectrum = new Spectrum(2048, 2048, 2048);
-			tonalPoints = [];
+			let tonalPoints = [];
 			step = 2**(1/12);
 			base = 110;
 			for(let i=1;i<2**6;i*=step) tonalPoints.push(base*i);
@@ -108,12 +109,11 @@
 				}
 				strokeWeight(15);
 				colorMode(HSB);
-
-				tonalPoints.map((x, i, a) => {      //interpolated tone frequencies
+				spectrum.tonalAmps = tonalPoints.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
+				spectrum.tonalAmps.map((x, i, a) => {     //draw interpolated tone amplitudes
 					stroke((i*30-60)%360,100,100);
-					point(horizontalScaling * spectrum.hzToIndex(x), map(spectrum.getInterpolatedAmp(x), 0, 255, height, 0));
+					point(horizontalScaling * spectrum.hzToIndex( x[0]), map(x[1], 0, 255, height, 0));
 				});
-
 				colorMode(RGB);
 				endShape();
 			}
