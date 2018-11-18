@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Fourier</title>
+	<script src="p5.min.js"></script>
+	<script src="p5.sound.min.js"></script>
+	<style>
+		body {
+			background-color: black;
+			color: lightgrey;
+		}
+
+		#out {
+			position: absolute;
+			text-align: right;
+			width: 98%;
+		}
+	</style>
+</head>
+<body>
+<p id="out">
+	<script>
+		{
+			let out = (where => (...what) => {
+				where.innerHTML = what;
+			})(document.getElementById("out"));
+
+			let mic, fft;
+
+			function lagrangeQuadraticInterpolation(points, x) {
+				if(!points[0]||!points[1]||!points[2]) return 0;
+				let [x_1, y_1] = points[0];
+				let [x_2, y_2] = points[1];
+				let [x_3, y_3] = points[2];
+				return y_1 * (x - x_2) * (x - x_3) / ((x_1 - x_2) * (x_1 - x_3))
+					+ y_2 * (x - x_1) * (x - x_3) / ((x_2 - x_1) * (x_2 - x_3))
+					+ y_3 * (x - x_1) * (x - x_2) / ((x_3 - x_1) * (x_3 - x_2))
+			}
+
+			getNearestIndexes = (array, where, n) => {      //optimalize
+				return array.slice(Math.round(where - n / 2), Math.round(where + n / 2))
+			};
+
+			function Spectrum(fourierPoints, pointsToAnalyze, pointsToShow) {
+				this.fourierPoints = fourierPoints;   //this needs to be 2^n
+				this.samplingFrequency = 44100;
+				this.pointsToAnalyze = pointsToAnalyze;
+				this.pointsToShow = pointsToShow;
+				this.indexToHz = i => i * (this.samplingFrequency / 2) / this.fourierPoints;
+				this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
+				this.datapoints = [];
+				this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
+				this.getInterpolatedAmp = (hz) => {
+					return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
+				}
+
+
+			}
+
+			spectrum = new Spectrum(2048, 2048, 2048);
+			tonalPoints = [];
+			step = 2**(1/12);
+			base = 110;
+			for(let i=1;i<2**6;i*=step) tonalPoints.push(base*i);
+			console.log(tonalPoints);
+			horizontalScaling = 4;
+
+			function setup() {
+				createCanvas(spectrum.pointsToShow*horizontalScaling, 1024);
+				noFill();
+				mic = new p5.AudioIn();
+				mic.start();
+				fft = new p5.FFT(0.92, spectrum.fourierPoints);
+				fft.setInput(mic);
+			}
+
+			function draw() {
+				background(0);
+				fft.analyze();
+				spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
+				spectrum.dataTuples = spectrum.datapoints.slice(0, spectrum.pointsToAnalyze).map((x, i) => [i, x]);  //slice to analyze only 0 - 5012.5 Hz, first is index, second amplitude
+				let SpectrumTuplesSortedByAmp = spectrum.dataTuples.sort((a, b) => a[1] < b[1]);
+				beginShape();
+				stroke(255, 255, 255);
+				strokeWeight(1);
+				for (let i = 0; i < spectrum.datapoints.length; i++) {    //draw spectrum
+					vertex(horizontalScaling * i, map(spectrum.datapoints[i], 0, 255, height, 0));
+				}
+				endShape();
+
+				beginShape();
+				stroke(255, 204, 0);
+				strokeWeight(10);
+				let SpectrumTuplesSortedByHz = SpectrumTuplesSortedByAmp.slice(0, spectrum.pointsToAnalyze).sort((a, b) => a[0] > b[0]);
+				let SpectrumTuplesSortedByHzFiltered = SpectrumTuplesSortedByHz.filter((x, i, a) => x[1] !== 0 && x[1] === Math.max(...(getNearestIndexes(a,i,5).map(y => y[1]))));
+
+				//out(SpectrumTuplesSortedByHzFiltered.map(x => `${Math.floor(spectrum.indexToHz(x[0]))} Hz - ${x[1]}`).join("<br>"));
+				/*for (let p of SpectrumTuplesSortedByHzFiltered.map(x => x[0])) {    //spikes
+					if (spectrum.indexToHz(p) > 85 && spectrum.indexToHz(p) < 800) stroke(255, 0, 0);
+					else stroke(255, 204, 0);
+					point(horizontalScaling * p, map(spectrum.datapoints[p], 0, 255, height, 0));
+				}*/
+				stroke(255, 0, 255);
+				strokeWeight(1);
+				for (let i = 0; i < 12; i++) {        //octave bands, tone A
+					line(spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, 0, spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, height);
+				}
+				strokeWeight(15);
+				colorMode(HSB);
+
+				tonalPoints.map((x, i, a) => {      //interpolated tone frequencies
+					stroke((i*30-60)%360,100,100);
+					point(horizontalScaling * spectrum.hzToIndex(x), map(spectrum.getInterpolatedAmp(x), 0, 255, height, 0));
+				});
+
+				colorMode(RGB);
+				endShape();
+			}
+		}
+
+
+	</script>
+
+</body>
+</html>

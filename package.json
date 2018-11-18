@@ -1,0 +1,10 @@
+{
+	"name": "fourier",
+	"version": "1.0.0",
+	"dependencies": {
+		"chart.js": "^2.7.3",
+		"decibels": "^2.0.0",
+		"fourier-transform": "^1.1.2",
+		"gl-spectrum": "^3.2.6"
+	}
+}
