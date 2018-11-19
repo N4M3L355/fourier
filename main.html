@@ -51,6 +51,7 @@
 				this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
 				this.datapoints = [];
 				this.tonalAmps = [];
+				this.tonalSum = [];
 				this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
 				this.getInterpolatedAmp = (hz) => {
 					return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
@@ -72,7 +73,7 @@
 				noFill();
 				mic = new p5.AudioIn();
 				mic.start();
-				fft = new p5.FFT(0.92, spectrum.fourierPoints);
+				fft = new p5.FFT(14/16, spectrum.fourierPoints);
 				fft.setInput(mic);
 			}
 
@@ -110,11 +111,20 @@
 				strokeWeight(15);
 				colorMode(HSB);
 				spectrum.tonalAmps = tonalPoints.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
+                spectrum.tonalSum = Array(12).fill(0);
 				spectrum.tonalAmps.map((x, i, a) => {     //draw interpolated tone amplitudes
 					stroke((i*30-60)%360,100,100);
-					point(horizontalScaling * spectrum.hzToIndex( x[0]), map(x[1], 0, 255, height, 0));
+					spectrum.tonalSum[i%12]+=x[1]/255;//*((i-i%12)/12+1);
+					point(horizontalScaling * spectrum.hzToIndex(x[0]), map(x[1], 0, 255, height, 0));
 				});
-				colorMode(RGB);
+                spectrum.tonalSum = ((a) => spectrum.tonalSum.map(x => x*a))(1/Math.max(...spectrum.tonalSum));
+
+                out(spectrum.tonalSum.join("<br>"));
+                spectrum.tonalSum.map((x, i, a)=>{
+                    stroke((i*30-60)%360,100,100);
+                    point(500+i*32,256-(x**4)*256);
+				});
+                colorMode(RGB);
 				endShape();
 			}
 		}
