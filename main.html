@@ -1,194 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>Fourier</title>
-	<script src="p5.min.js"></script>
-	<script src="p5.sound.min.js"></script>
-	<style>
-		body {
-			background-color: black;
-			color: lightgrey;
-		}
+    <meta charset="UTF-8">
+    <title>Fourier</title>
+    <script src="p5.min.js"></script>
+    <script src="p5.sound.min.js"></script>
+    <script src="bundle.js"></script>
+    <style>
+        body {
+            background-color: black;
+            color: lightgrey;
+        }
 
-		#out {
-			position: absolute;
-			text-align: right;
-			width: 98%;
-		}
-	</style>
+        #out {
+            position: absolute;
+            text-align: right;
+            width: 98%;
+        }
+    </style>
 </head>
 <body>
-<p id="out">
-	<script>
-		{
-			let out = (where => (...what) => {
-				where.innerHTML = what;
-			})(document.getElementById("out"));
+<p id="out"></p>
+<script>
 
-			let mic, fft;
+    let out = (where => (...what) => {
+        where.innerHTML = what;
+    })(document.getElementById("out"));
 
-			sum = (...a) => a.reduce((a, b) => a + b);
-			avg = (...a) => sum(...a) / a.length;
+    let sum = (...a) => a.reduce((a, b) => a + b);
+    let avg = (...a) => sum(...a) / a.length;
 
-			function lagrangeQuadraticInterpolation(points, x) {
-				if (!points[0] || !points[1] || !points[2]) return 0;
-				let [x_1, y_1] = points[0];
-				let [x_2, y_2] = points[1];
-				let [x_3, y_3] = points[2];
-				return y_1 * (x - x_2) * (x - x_3) / ((x_1 - x_2) * (x_1 - x_3))
-					+ y_2 * (x - x_1) * (x - x_3) / ((x_2 - x_1) * (x_2 - x_3))
-					+ y_3 * (x - x_1) * (x - x_2) / ((x_3 - x_1) * (x_3 - x_2))
-			}
+    function lagrangeQuadraticInterpolation(points, x) {
+        if (!points[0] || !points[1] || !points[2]) return 0;
+        let [x_1, y_1] = points[0];
+        let [x_2, y_2] = points[1];
+        let [x_3, y_3] = points[2];
+        return y_1 * (x - x_2) * (x - x_3) / ((x_1 - x_2) * (x_1 - x_3))
+            + y_2 * (x - x_1) * (x - x_3) / ((x_2 - x_1) * (x_2 - x_3))
+            + y_3 * (x - x_1) * (x - x_2) / ((x_3 - x_1) * (x_3 - x_2))
+    }
 
-			getNearestIndexes = (array, where, n) => {      //optimalize
-				return array.slice(Math.round(where - n / 2), Math.round(where + n / 2))
-			};
+    let getNearestIndexes = (array, where, n) => {      //optimalize
+        return array.slice(Math.round(where - n / 2), Math.round(where + n / 2))
+    };
 
-			function SlidingArray(length) {
-				this.length = length; //percussion averages memory length
-				this.datapoints = Array(this.length).fill(0);
-				this.index = 0;
-				this.append = (x) => {
-					this.datapoints[this.index] = x;
-					this.index = (this.index + 1) % this.length;
-				};
-				this.get = () => [...this.datapoints.slice(this.index, this.length), ...this.datapoints.slice(0, this.index)];
-			}
+    function SlidingArray(length) {
+        this.length = length; //percussion averages memory length
+        this.datapoints = Array(this.length).fill(0);
+        this.index = 0;
+        this.append = (x) => {
+            this.datapoints[this.index] = x;
+            this.index = (this.index + 1) % this.length;
+        };
+        this.get = () => [...this.datapoints.slice(this.index, this.length), ...this.datapoints.slice(0, this.index)];
+    }
 
-			function Spectrum(fourierPoints, pointsToAnalyze, pointsToShow) {
-				this.fourierPoints = fourierPoints;   //this needs to be 2^n
-				this.samplingFrequency = 44100;
-				this.pointsToAnalyze = pointsToAnalyze;
-				this.pointsToShow = pointsToShow;
-				this.indexToHz = i => i * (this.samplingFrequency / 2) / this.fourierPoints;
-				this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
-				this.datapoints = [];
-				this.tonalAmps = [];
-				this.tonalSum = [];
-				this.percAvgs = new SlidingArray(8 * 60); //percussion averages memory length
-				this.percAvgs2 = new SlidingArray(8 * 60); //percussion averages memory length
-				this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
-				this.getInterpolatedAmp = (hz) => {
-					return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
-				}
-
-
-			}
-
-			spectrum = new Spectrum(2048, 1536, 1536);
-			scale = ["A","A#","H","C","C#","D","D#","E","F","F#","G","G#"];
-			let tonalPoints = [];
-			let step = 2 ** (1 / 12);
-			let base = 110;
-			for (let i = 1; i < 2 ** 6; i *= step) tonalPoints.push(base * i);
-			console.log(tonalPoints);
-			horizontalScaling = 3;
-
-			function setup() {
-				createCanvas(spectrum.pointsToShow * horizontalScaling, 1024);
-				noFill();
-				mic = new p5.AudioIn();
-				mic.start();
-				fft = new p5.FFT(14 / 16, spectrum.fourierPoints);
-				fft.setInput(mic);
-			}
-
-			function draw() {
-				background(0);
-				fft.analyze();
-				spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
-				spectrum.dataTuples = spectrum.datapoints.slice(0, spectrum.pointsToAnalyze).map((x, i) => [i, x]);  //slice to analyze only 0 - 5012.5 Hz, first is index, second amplitude
-				// let SpectrumTuplesSortedByAmp = spectrum.dataTuples.sort((a, b) => a[1] < b[1]);
-				beginShape();
-				stroke(255, 255, 255);
-				strokeWeight(1);
-				for (let i = 0; i < spectrum.datapoints.length; i++) {    //draw spectrum
-					vertex(horizontalScaling * i, map(spectrum.datapoints[i], 0, 255, height, 0));
-				}
-				endShape();
-
-				beginShape();
-				//stroke(255, 204, 0);
-				//strokeWeight(10);
-				//let SpectrumTuplesSortedByHz = SpectrumTuplesSortedByAmp.slice(0, spectrum.pointsToAnalyze).sort((a, b) => a[0] > b[0]);
-				//let SpectrumTuplesSortedByHzFiltered = SpectrumTuplesSortedByHz.filter((x, i, a) => x[1] !== 0 && x[1] === Math.max(...(getNearestIndexes(a,i,5).map(y => y[1]))));
-				//out(SpectrumTuplesSortedByHzFiltered.map(x => `${Math.floor(spectrum.indexToHz(x[0]))} Hz - ${x[1]}`).join("<br>"));
-				/*for (let p of SpectrumTuplesSortedByHzFiltered.map(x => x[0])) {    //spikes
-					if (spectrum.indexToHz(p) > 85 && spectrum.indexToHz(p) < 800) stroke(255, 0, 0);
-					else stroke(255, 204, 0);
-					point(horizontalScaling * p, map(spectrum.datapoints[p], 0, 255, height, 0));
-				}*/
-				stroke(255, 0, 255);
-				strokeWeight(1);
-				for (let i = 0; i < 12; i++) {        //octave bands, tone A
-					line(spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, 0, spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, height);
-				}
-				strokeWeight(15);
-				colorMode(HSB);
-				spectrum.tonalAmps = tonalPoints.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
-				spectrum.tonalSum = Array(12).fill(0);
-				spectrum.tonalAmps.map((x, i, a) => {     //draw interpolated tone amplitudes
-					stroke((i * 30 + 300) % 360, 100, 100);
-					spectrum.tonalSum[i % 12] += x[1] / 255;	//*((i-i%12)/12+1);
-					point(horizontalScaling * spectrum.hzToIndex(x[0]), map(x[1], 0, 255, height, 0));
-				});
-				spectrum.tonalSum = ((a) => spectrum.tonalSum.map(x => x / a))(Math.max(...spectrum.tonalSum) || 1);
-
-				out(spectrum.tonalSum.join("<br>"));
-				spectrum.tonalSum.map((x, i, a) => {
-					stroke((i * 30 + 300) % 360, 100, 100);
-					point(500 + i * 32, 256 - (x ** 4) * 256);
-				});
-				strokeWeight(1);
-				scale.map((x, i, a) => {
-					stroke((i * 30 + 300) % 360, 100, 100);
-					point(500 + i * 32, 256 - (x ** 4) * 256);
-					text(x,500 + i * 32, 276);
-				});
-				colorMode(RGB);
-				stroke(255, 255, 255);
-				let percAvg = avg(...spectrum.datapoints.slice(spectrum.hzToIndex(20), spectrum.hzToIndex(80)));
-				let percAvg2 = avg(...spectrum.datapoints.slice(spectrum.hzToIndex(4000), spectrum.hzToIndex(8000)));
-				line(horizontalScaling * spectrum.hzToIndex(20),
-					map(percAvg, 0, 255, height, 0),
-					horizontalScaling * spectrum.hzToIndex(80),
-					map(percAvg, 0, 255, height, 0)
-				);
-				endShape();
-				spectrum.percAvgs.append(percAvg);
-				spectrum.percAvgs2.append(percAvg2);
-				beginShape();
-				stroke(255, 255, 255);
-				strokeWeight(1);
-				stroke(255, 204, 0);
-				spectrum.percAvgs.get().map((x, i, a) => {
-					vertex(horizontalScaling * i, map(x, 0, 255, height, 0));
-					if (x === Math.max(...a.slice(i - 12, i + 12))) {
-						strokeWeight(10);
-						point(horizontalScaling * i, map(x, 0, 255, height, 0));
-						strokeWeight(1);
-					}
-				});
-				endShape();
-				beginShape();
-				stroke(128, 128, 128);
-				spectrum.percAvgs2.get().map((x, i, a) => {
-					vertex(horizontalScaling * i, map(x, 0, 255, height / 2, 0));
-
-				});
-
-				line(horizontalScaling * spectrum.hzToIndex(4000),
-					map(percAvg2, 0, 255, height, 0),
-					horizontalScaling * spectrum.hzToIndex(8000),
-					map(percAvg2, 0, 255, height, 0)
-				);
-				endShape();
-			}
-		}
+    function Spectrum(smoothing, fourierPoints, pointsToAnalyze, pointsToShow) {
+        this.smoothing = smoothing;
+        this.fourierPoints = fourierPoints;   //this needs to be 2^n
+        this.samplingFrequency = 44100;
+        this.pointsToAnalyze = pointsToAnalyze;
+        this.pointsToShow = pointsToShow;
+        this.indexToHz = i => i * (this.samplingFrequency / 2) / this.fourierPoints;
+        this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
+        this.datapoints = [];
+        this.tonalAmps = [];
+        this.tonalSum = [];
+        this.history = {
+            kickAvgs: new SlidingArray(8 * 60), //kick averages
+            hihatAvgs: new SlidingArray(8 * 60), //hihat averages
+            tonalAmps: new SlidingArray(8 * 60) //tonal averages
+        };
+        this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
+        this.getInterpolatedAmp = (hz) => {
+            return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
+        }
 
 
-	</script>
+    }
+
+
+    //TODO: masking, fft na rytmus, derivácia nôt, time eventing
+
+    let mic, fft;
+    let spectrum = new Spectrum(7 / 8, 4096, 1536, 1536);
+    let myScale = ["A","A#","H","C","C#","D","D#","E","F","F#","G","G#"];
+    let myScaleHues = [90,300,150,0,210,60,270,120,330,180,30,240];
+    let tonalFrequencies = [];
+    let step = 2 ** (1 / 12);
+    let base = 110;
+    for (let i = 1; i < 2 ** 7; i *= step) tonalFrequencies.push(base * i);
+    horizontalScaling = 3;
+
+    function setup() {
+        createCanvas(spectrum.pointsToShow * horizontalScaling, window.innerHeight*11/12);
+        noFill();
+        mic = new p5.AudioIn();
+        mic.start();
+        fft = new p5.FFT(spectrum.smoothing, spectrum.fourierPoints);
+        fft.setInput(mic);
+    }
+
+    function draw() {
+        background(0);
+        spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
+        spectrum.dataTuples = spectrum.datapoints.slice(0, spectrum.pointsToAnalyze).map((x, i) => [i, x]);  //slice to analyze only 0 - 5012.5 Hz, first is index, second amplitude
+
+        stroke(255, 255, 255);
+        strokeWeight(1);
+        beginShape();
+        for (let i = 0; i < spectrum.datapoints.length; i++) {    //draw spectrum
+            vertex(horizontalScaling * i, map(spectrum.datapoints[i], 0, 255, height/2, 0));
+        }
+        endShape();
+
+        beginShape();
+        //stroke(255, 204, 0);
+        //strokeWeight(10);
+        //let SpectrumTuplesSortedByAmp = spectrum.dataTuples.sort((a, b) => a[1] < b[1]);
+        //let SpectrumTuplesSortedByHz = SpectrumTuplesSortedByAmp.slice(0, spectrum.pointsToAnalyze).sort((a, b) => a[0] > b[0]);
+        //let SpectrumTuplesSortedByHzFiltered = SpectrumTuplesSortedByHz.filter((x, i, a) => x[1] !== 0 && x[1] === Math.max(...(getNearestIndexes(a,i,5).map(y => y[1]))));
+        //out(SpectrumTuplesSortedByHzFiltered.map(x => `${Math.floor(spectrum.indexToHz(x[0]))} Hz - ${x[1]}`).join("<br>"));
+        /*for (let p of SpectrumTuplesSortedByHzFiltered.map(x => x[0])) {    //spikes
+            if (spectrum.indexToHz(p) > 85 && spectrum.indexToHz(p) < 800) stroke(255, 0, 0);
+            else stroke(255, 204, 0);
+            point(horizontalScaling * p, map(spectrum.datapoints[p], 0, 255, height, 0));
+        }*/
+        stroke(255, 0, 255);
+        strokeWeight(1);
+        for (let i = 0; i < 12; i++) {        //octave bands, tone A
+            line(spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, 0, spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, height/2);
+        }
+        strokeWeight(15);
+        colorMode(HSB);
+        spectrum.tonalAmps = tonalFrequencies.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
+        spectrum.tonalSum = Array(12).fill(0);
+        spectrum.tonalAmps.map((x, i, a) => {     //draw interpolated tone amplitudes
+            stroke(myScaleHues[i%12], 100, x[1]);
+            point(horizontalScaling * spectrum.hzToIndex(x[0]), map(x[1], 0, 255, height/2, 0));
+        });
+        spectrum.tonalAmps.map((x, i, a) => {     //
+            spectrum.tonalSum[i % 12] += x[1] - (avg(a[i-6]?a[i-6][1]:a[i+6][1],a[i+6]?a[i+6][1]:a[i-6][1]));	//*((i-i%12)/12+1);
+        });
+        spectrum.tonalSum = ((a) => spectrum.tonalSum.map(x => x / (a)))(Math.max(...spectrum.tonalSum) || 1);    //normalized
+        out(spectrum.tonalSum.join("<br>"));
+        spectrum.tonalSum.map((x, i, a) => {
+            stroke(myScaleHues[i%12], 100, 100);
+            point(window.innerWidth - 32- i * 32, window.innerHeight - 128 - (x ** 4) * 256);
+        });
+
+        strokeWeight(1);
+        myScale.map((x, i, a) => {
+            stroke(myScaleHues[i%12], 100, 100);
+            text(x, window.innerWidth - 32- i * 32, window.innerHeight - 104);
+        });
+
+
+        colorMode(RGB);
+
+        strokeWeight(1);
+        stroke(255, 204, 0);
+
+        let kickAvg = avg(...spectrum.datapoints.slice(spectrum.hzToIndex(0), spectrum.hzToIndex(80)));
+        spectrum.history.kickAvgs.append(kickAvg);
+
+        line(horizontalScaling * spectrum.hzToIndex(0),
+            map(kickAvg, 0, 255, height/2, 0),
+            horizontalScaling * spectrum.hzToIndex(80),
+            map(kickAvg, 0, 255, height/2, 0)
+        );
+
+
+        beginShape();
+        spectrum.history.kickAvgs.get().map((x, i, a) => {
+            vertex(horizontalScaling * i, map(x, 0, 255, height, height/2));
+            if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
+                strokeWeight(10);
+                point(horizontalScaling * i, map(x, 0, 255, height, height/2));
+                strokeWeight(1);
+            }
+        });
+        endShape();
+
+        stroke(128, 128, 128);
+        let hihatAvgs = avg(...spectrum.datapoints.slice(spectrum.hzToIndex(4000), spectrum.hzToIndex(8000)));
+        spectrum.history.hihatAvgs.append(hihatAvgs);
+
+        line(horizontalScaling * spectrum.hzToIndex(4000),
+            map(hihatAvgs, 0, 255, height/2, 0),
+            horizontalScaling * spectrum.hzToIndex(8000),
+            map(hihatAvgs, 0, 255, height/2, 0)
+        );
+
+        beginShape();
+        spectrum.history.hihatAvgs.get().map((x, i, a) => {
+            vertex(horizontalScaling * i, map(x, 0, 255, height, height/2));
+            if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
+                strokeWeight(5);
+                point(horizontalScaling * i, map(x, 0, 255, height, height/2));
+                strokeWeight(1);
+            }
+        });
+
+        endShape();
+    }
+
+
+</script>
 
 </body>
 </html>
