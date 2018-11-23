@@ -210,9 +210,6 @@
 		stroke(128, 0,0);
 		let volumeAmpsAvg = avg(...SpectrumTuplesSortedByAmp.slice(-64).map(x => x[1]));
 		spectrum.history.entireVolumes.append(volumeAmpsAvg);
-
-		beginShape();
-		beginShape();
 		beginShape();
 		spectrum.history.entireVolumes.get().map((x, i, a) => {
 			vertex(horizontalScaling * i, map(x, 0, 255, height, height / 2));
