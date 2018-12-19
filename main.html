@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Fourier</title>
     <script src="p5.min.js"></script>
+    <script src="tonal.min.js"></script>
     <script src="p5.sound.min.js"></script>
     <script src="bundle.js"></script>
     <style>
@@ -23,33 +24,223 @@
 <p id="out"></p>
 <script>
 
+    let Detect = require("tonal-detect");       //this works because of browserify
+
+    let notesFromChords = {
+        "+add#9":[0,3,4,8],
+        "11":[0,2,5,7,10],
+        "11b9":[0,1,5,7,10],
+        "13":[0,2,4,7,9,10],
+        "13#11":[0,2,4,6,7,9,10],
+        "13#9":[0,3,4,7,9,10],
+        "13#9#11":[0,3,4,6,7,9,10],
+        "13b5":[0,2,4,6,9,10],
+        "13b9":[0,1,4,7,9,10],
+        "13b9#11":[0,1,4,6,7,9,10],
+        "13no5":[0,2,4,9,10],
+        "13sus4":[0,2,5,7,9,10],
+        "64":[0,4,7],
+        "7":[0,4,7,10],
+        "7#11":[0,4,6,7,10],
+        "7#11b13":[0,4,6,7,8,10],
+        "7#5":[0,4,8,10],
+        "7#5#9":[0,3,4,8,10],
+        "7#5b9":[0,1,4,8,10],
+        "7#5b9#11":[0,1,4,6,8,10],
+        "7#5sus4":[0,5,8,10],
+        "7#9":[0,3,4,7,10],
+        "7#9#11":[0,3,4,6,7,10],
+        "7#9#11b13":[0,3,4,6,7,8,10],
+        "7#9b13":[0,3,4,7,8,10],
+        "7add6":[0,4,7,9,10],
+        "7b13":[0,4,8,10],
+        "7b5":[0,4,6,10],
+        "7b6":[0,4,7,8,10],
+        "7b9":[0,1,4,7,10],
+        "7b9#11":[0,1,4,6,7,10],
+        "7b9#9":[0,1,3,4,7,10],
+        "7b9b13":[0,1,4,7,8,10],
+        "7b9b13#11":[0,1,4,6,7,8,10],
+        "7no5":[0,4,10],
+        "7sus4":[0,5,7,10],
+        "7sus4b9":[0,1,5,7,10],
+        "7sus4b9b13":[0,1,5,7,8,10],
+        "9":[0,2,4,7,10],
+        "9#11":[0,2,4,6,7,10],
+        "9#11b13":[0,2,4,6,7,8,10],
+        "9#5":[0,2,4,8,10],
+        "9#5#11":[0,2,4,6,8,10],
+        "9b13":[0,2,4,8,10],
+        "9b5":[0,2,4,6,10],
+        "9no5":[0,2,4,10],
+        "9sus4":[0,2,5,7,10],
+        "M":[0,4,7],
+        "M#5":[0,4,8],
+        "M#5add9":[0,2,4,8],
+        "M13":[0,2,4,7,9,11],
+        "M13#11":[0,2,4,6,7,9,11],
+        "M6":[0,4,7,9],
+        "M6#11":[0,4,6,7,9],
+        "M69":[0,2,4,7,9],
+        "M69#11":[0,2,4,6,7,9],
+        "M7#11":[0,4,6,7,11],
+        "M7#5":[0,4,8,11],
+        "M7#5sus4":[0,5,8,11],
+        "M7#9#11":[0,3,4,6,7,11],
+        "M7add13":[0,2,4,7,9,11],
+        "M7b5":[0,4,6,11],
+        "M7b6":[0,4,8,11],
+        "M7b9":[0,1,4,7,11],
+        "M7sus4":[0,5,7,11],
+        "M9":[0,2,4,7,11],
+        "M9#11":[0,2,4,6,7,11],
+        "M9#5":[0,2,4,8,11],
+        "M9#5sus4":[0,2,5,8,11],
+        "M9b5":[0,2,4,6,11],
+        "M9sus4":[0,2,5,7,11],
+        "Madd9":[0,2,4,7],
+        "Maddb9":[0,1,4,7],
+        "Maj7":[0,4,7,11],
+        "Mb5":[0,4,6],
+        "Mb6":[0,4,8],
+        "Msus2":[0,2,7],
+        "Msus4":[0,5,7],
+        "m":[0,3,7],
+        "m#5":[0,3,8],
+        "m11":[0,2,3,5,7,10],
+        "m11A 5":[0,2,3,5,8,10],
+        "m11b5":[0,2,3,5,6,10],
+        "m13":[0,2,3,5,7,9,10],
+        "m6":[0,3,5,7,9],
+        "m69":[0,2,3,7,9],
+        "m7":[0,3,7,10],
+        "m7#5":[0,3,8,10],
+        "m7add11":[0,3,5,7,10],
+        "m7b5":[0,3,6,10],
+        "m9":[0,2,3,7,10],
+        "m9#5":[0,2,3,8,10],
+        "m9b5":[0,2,3,6,10],
+        "mM9":[0,2,3,7,11],
+        "mM9b6":[0,2,3,7,8,11],
+        "mMaj7":[0,3,7,11],
+        "mMaj7b6":[0,3,7,8,11],
+        "madd4":[0,3,5,7],
+        "madd9":[0,2,3,7],
+        "mb6M7":[0,3,8,11],
+        "mb6b9":[0,1,3,8],
+        "o":[0,3,6],
+        "o7":[0,3,6,9],
+        "o7M7":[0,3,6,9,11],
+        "oM7":[0,3,6,11],
+        "sus24":[0,2,5,7]};
+    let chordFromNotes = {
+        "0,4,7,10": "7",
+        "0,2,4,7,10": "9",
+        "0,2,4,7,9,10": "13",
+        "0,3,4,8": "+add#9",
+        "0,1,5,7,10": "11b9",
+        "0,2,4,6,7,9,10": "13#11",
+        "0,3,4,7,9,10": "13#9",
+        "0,3,4,6,7,9,10": "13#9#11",
+        "0,2,4,6,9,10": "13b5",
+        "0,1,4,7,9,10": "13b9",
+        "0,1,4,6,7,9,10": "13b9#11",
+        "0,2,4,9,10": "13no5",
+        "0,2,5,7,9,10": "13sus4",
+        "0,4,6,7,10": "7#11",
+        "0,4,6,7,8,10": "7#11b13",
+        "0,4,8,10": "7#5",
+        "0,3,4,8,10": "7#5#9",
+        "0,1,4,8,10": "7#5b9",
+        "0,1,4,6,8,10": "7#5b9#11",
+        "0,5,8,10": "7#5sus4",
+        "0,3,4,7,10": "7#9",
+        "0,3,4,6,7,10": "7#9#11",
+        "0,3,4,6,7,8,10": "7#9#11b13",
+        "0,3,4,7,8,10": "7#9b13",
+        "0,4,7,9,10": "7add6",
+        "0,4,6,10": "7b5",
+        "0,4,7,8,10": "7b6",
+        "0,1,4,7,10": "7b9",
+        "0,1,4,6,7,10": "7b9#11",
+        "0,1,3,4,7,10": "7b9#9",
+        "0,1,4,7,8,10": "7b9b13",
+        "0,1,4,6,7,8,10": "7b9b13#11",
+        "0,4,10": "7no5",
+        "0,5,7,10": "7sus4",
+        "0,1,5,7,8,10": "7sus4b9b13",
+        "0,2,4,6,7,10": "9#11",
+        "0,2,4,6,7,8,10": "9#11b13",
+        "0,2,4,8,10": "9#5",
+        "0,2,4,6,8,10": "9#5#11",
+        "0,2,4,6,10": "9b5",
+        "0,2,4,10": "9no5",
+        "0,2,5,7,10": "9sus4",
+        "0,4,7": "M",
+        "0,4,8": "M#5",
+        "0,2,4,8": "M#5add9",
+        "0,2,4,7,9,11": "M13",
+        "0,2,4,6,7,9,11": "M13#11",
+        "0,4,7,9": "M6",
+        "0,4,6,7,9": "M6#11",
+        "0,2,4,7,9": "M69",
+        "0,2,4,6,7,9": "M69#11",
+        "0,4,6,7,11": "M7#11",
+        "0,4,8,11": "M7#5",
+        "0,5,8,11": "M7#5sus4",
+        "0,3,4,6,7,11": "M7#9#11",
+        "0,4,6,11": "M7b5",
+        "0,1,4,7,11": "M7b9",
+        "0,5,7,11": "M7sus4",
+        "0,2,4,7,11": "M9",
+        "0,2,4,6,7,11": "M9#11",
+        "0,2,4,8,11": "M9#5",
+        "0,2,5,8,11": "M9#5sus4",
+        "0,2,4,6,11": "M9b5",
+        "0,2,5,7,11": "M9sus4",
+        "0,2,4,7": "Madd9",
+        "0,4,7,11": "Maj7",
+        "0,4,6": "Mb5",
+        "0,2,7": "Msus2",
+        "0,5,7": "Msus4",
+        "0,3,7": "m",
+        "0,3,8": "m#5",
+        "0,2,3,5,7,10": "m11",
+        "0,2,3,5,8,10": "m11A 5",
+        "0,2,3,5,6,10": "m11b5",
+        "0,2,3,5,7,9,10": "m13",
+        "0,3,5,7,9": "m6",
+        "0,2,3,7,9": "m69",
+        "0,3,7,10": "m7",
+        "0,3,8,10": "m7#5",
+        "0,3,5,7,10": "m7add11",
+        "0,3,6,10": "m7b5",
+        "0,2,3,7,10": "m9",
+        "0,2,3,8,10": "m9#5",
+        "0,2,3,6,10": "m9b5",
+        "0,2,3,7,11": "mM9",
+        "0,2,3,7,8,11": "mM9b6",
+        "0,3,7,11": "mMaj7",
+        "0,3,7,8,11": "mMaj7b6",
+        "0,3,5,7": "madd4",
+        "0,2,3,7": "madd9",
+        "0,3,8,11": "mb6M7",
+        "0,1,3,8": "mb6b9",
+        "0,3,6": "o",
+        "0,3,6,9": "o7",
+        "0,3,6,9,11": "o7M7",
+        "0,3,6,11": "oM7",
+        "0,2,5,7": "sus24"
+    };
     let out = (where => (...what) => {
         where.innerHTML = what;
+        return what;
     })(document.getElementById("out"));
 
     let sum = (...a) => a.reduce((a, b) => a + b);
     let mean = (...a) => sum(...a) / a.length;
 	let product = (...a) => a.reduce((a,b) => a*b);
 	let geoMean = (...a) => Math.abs(product(...a))**(1/a.length);
-
-    let paintPixel = (x, y, r, g, b, a) => {      //needs to have pixels loaded
-        let d = pixelDensity();
-        for (let i = 0; i < d; i++) {
-            for (let j = 0; j < d; j++) {
-                // loop over
-                idx = 4 * ((y * d + j) * width * d + (x * d + i));
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                pixels[idx + 3] = a;
-            }
-        }
-    };
-    let getPixel = (x, y) => {      //needs to have pixels loaded
-        let d = pixelDensity();
-        let off = (y * width + x) * d * 4;
-        return [pixels[off], pixels[off + 1], pixels[off + 2], pixels[off + 3]];
-    };
 
     function lagrangeQuadraticInterpolation(points, x) {
         if (!points[0] || !points[1] || !points[2]) return 0;
@@ -91,14 +282,15 @@
         this.base = 110;
         this.step = 2 ** (1 / 12);
         this.octaves = 6;
-        this.framesToAnalyze = 3 * 60;
+        this.framesToAnalyze = 6 * 60;
 		this.history = {
 			kickAvgs: new SlidingArray(this.framesToAnalyze), //kick averages
             hihatAvgs: new SlidingArray(this.framesToAnalyze), //hihat averages
             entireVolumes: new SlidingArray(this.framesToAnalyze),
             tonalAmps: new SlidingArray(this.framesToAnalyze, [0]),
             tonalSums: new SlidingArray(this.framesToAnalyze,[0]),
-			processedTonalSums: Array(12).fill().map(() => new SlidingArray(this.framesToAnalyze, [0,0]))	//this is array itself!
+			processedTonalSums: Array(12).fill().map(() => new SlidingArray(this.framesToAnalyze, [0,0])),	//this is array itself!
+            peaks: new SlidingArray(this.framesToAnalyze)
         };
         this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
         this.getInterpolatedAmp = (hz) => {
@@ -111,168 +303,190 @@
 
     //TODO: masking, fft na rytmus, derivácia nôt, time eventing
 
-    let mic, fft;
-    let spectrum = new Spectrum(28/32, 2048, 1536, 1536);
-    let myScale = ["A", "A#", "H", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+    let mic;
+    let fft;
+    let peakDetect;
+    let lastSpectrumData;
+    let spectrum = new Spectrum(27/32, 2048, 1024, 1024);
+    let myScale = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
     let myScaleHues = [90, 300, 150, 0, 210, 60, 270, 120, 330, 180, 30, 240];
+    let sounds = [];
     let tonalFrequencies = [];
     for (let i = 1; i < 2 ** spectrum.octaves; i *= spectrum.step) tonalFrequencies.push(spectrum.base * i);
-    horizontalScaling = 3;
+    horizontalScaling = 128+64-4;
 
     function setup() {
         background(0);
-        createCanvas(spectrum.pointsToShow * horizontalScaling, window.innerHeight * 2);
+        createCanvas(window.innerWidth, window.innerHeight * 2);
         noFill();
         mic = new p5.AudioIn();
         mic.start();
         fft = new p5.FFT(spectrum.smoothing, spectrum.fourierPoints);
+        peakDetect = new p5.PeakDetect(20,200,0.35,16);
         fft.setInput(mic);
         stroke(255, 204, 0);
     }
 
-    function draw() {
-        background(0);
-        noFill();
-        spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
-        spectrum.dataTuples = spectrum.datapoints.slice(0, spectrum.pointsToAnalyze).map((x, i) => [i, x]);  //slice to analyze only 0 - 5012.5 Hz, first is index, second amplitude
-
-        stroke(255, 255, 255);
-        strokeWeight(1);
+    function drawSpectrum(points) {
+        if(!points) return;
         beginShape();
-        for (let i = 0; i < spectrum.datapoints.length; i++) {    //draw spectrum
-            vertex(horizontalScaling * i, map(spectrum.datapoints[i], 0, 255, height / 2, 0));
+        for (let i = 0; i < points.length; i++) {    //draw spectrum
+            vertex(horizontalScaling * Math.log2(i), map(points[i], 0, 255, window.innerHeight / 2, 0));
         }
         endShape();
+    }
 
-        beginShape();
-        //stroke(255, 204, 0);
-        //strokeWeight(10);
-        let SpectrumTuplesSortedByAmp = spectrum.dataTuples.sort((a, b) => a[1] - b[1]);
-        //let SpectrumTuplesSortedByHz = SpectrumTuplesSortedByAmp.slice(0, spectrum.pointsToAnalyze).sort((a, b) => a[0] - b[0]);
-        //let SpectrumTuplesSortedByHzFiltered = SpectrumTuplesSortedByHz.filter((x, i, a) => x[1] !== 0 && x[1] === Math.max(...(getNearestIndexes(a,i,5).map(y => y[1]))));
-        //out(SpectrumTuplesSortedByHzFiltered.map(x => `${Math.floor(spectrum.indexToHz(x[0]))} Hz - ${x[1]}`).join("<br>"));
-        /*for (let p of SpectrumTuplesSortedByHzFiltered.map(x => x[0])) {    //spikes
-                if (spectrum.indexToHz(p) > 85 && spectrum.indexToHz(p) < 800) stroke(255, 0, 0);
-                else stroke(255, 204, 0);
-                point(horizontalScaling * p, map(spectrum.datapoints[p], 0, 255, height, 0));
-        }*/
-        stroke(255, 0, 255);
-        strokeWeight(1);
-        for (let i = 0; i < 12; i++) {        //octave bands, tone A
-            line(spectrum.hzToIndex(110 * 2 ** i) * horizontalScaling, 0, spectrum.hzToIndex(spectrum.base * 2 ** i) * horizontalScaling, window.innerHeight / 2);
+    function drawOctaveBands() {
+        for (let i = 0; i < spectrum.octaves+1; i++) {        //octave bands, tone A
+            line(Math.log2(spectrum.hzToIndex(spectrum.base * 2 ** i)) * horizontalScaling, 0, Math.log2(spectrum.hzToIndex(spectrum.base * 2 ** i)) * horizontalScaling, window.innerHeight / 2);
         }
-        strokeWeight(15);
-        colorMode(HSB);
-        spectrum.tonalAmps = tonalFrequencies.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
-        spectrum.tonalSums = Array(12).fill(0);
+    }
+
+    function drawTonalAmplitudes() {
         spectrum.tonalAmps.forEach((x, i, a) => {     //draw interpolated tone amplitudes
             stroke(myScaleHues[i % 12], 100, x[1]);
-            point(horizontalScaling * spectrum.hzToIndex(x[0]), map(x[1], 0, 255, window.innerHeight / 2, 0));
-		});
-		spectrum.tonalAmps.forEach((x, i, a) => {
-			sortedE = a.slice(Math.max(i - 6, 0), i + 6).sort((a, b) => a[1] - b[1]);
-			spectrum.tonalSums[i % 12] += (x[1] - sortedE[Math.floor(sortedE.length / 2)][1]) / 4;	//*((i-i%12)/12+1);
-		});
-        spectrum.history.tonalSums.append(spectrum.tonalSums);
-		spectrum.tonalSums = ((avg, min) => spectrum.tonalSums.map((x, i, a) => Math.min(map(x, min, avg, 0, 0.5), 1)))(mean(...spectrum.tonalSums), Math.min(...spectrum.tonalSums));    //normalization
-		out(spectrum.tonalSums.join("<br>"));
-		spectrum.tonalSums.forEach((x, i, a) => {
-			stroke(myScaleHues[i % 12], 100, 100);
-			point(window.innerWidth - 32 - (12 - i) * 32, window.innerHeight - 128 - (x) * 256);
-		});
-		spectrum.history.tonalAmps.append(spectrum.tonalAmps);
+            point(Math.log2(spectrum.hzToIndex(x[0])) * horizontalScaling, map(x[1], 0, 255, window.innerHeight / 2, 0));
+        });
+    }
+
+    function drawTonalSums() {
+        spectrum.tonalSums.forEach((x, i, a) => {
+            stroke(myScaleHues[i % 12], 100, 100);
+            point(window.innerWidth - 32 - (12 - i) * 32, window.innerHeight - 128 - (x) * 256);
+        });
 
         strokeWeight(1);
         myScale.forEach((x, i, a) => {
             stroke(myScaleHues[i % 12], 100, 100);
             text(x, window.innerWidth - 32 - (12 - i) * 32, window.innerHeight - 104);
         });
+    }
 
-
-        colorMode(RGB);
-
+    function drawTonalSpectrum(horizontalScaling) {
         strokeWeight(1);
-        stroke(255, 204, 0);
-
-        let kickAvg = mean(...spectrum.datapoints.slice(spectrum.hzToIndex(0), spectrum.hzToIndex(80)));
-        spectrum.history.kickAvgs.append(kickAvg);
-
-        line(horizontalScaling * spectrum.hzToIndex(0),
-            map(kickAvg, 0, 255, window.innerHeight / 2, 0),
-            horizontalScaling * spectrum.hzToIndex(80),
-            map(kickAvg, 0, 255, window.innerHeight / 2, 0)
-        );
-
-
-        beginShape();
-        spectrum.history.kickAvgs.get().map((x, i, a) => {
-            vertex(horizontalScaling * i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
-            if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
-                strokeWeight(10);
-                point(horizontalScaling * i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
-                strokeWeight(1);
-            }
-        });
-        endShape();
-
-        stroke(128, 128, 128);
-        let hihatAvgs = mean(...spectrum.datapoints.slice(spectrum.hzToIndex(4000), spectrum.hzToIndex(8000)));
-        spectrum.history.hihatAvgs.append(hihatAvgs);
-
-        line(horizontalScaling * spectrum.hzToIndex(4000),
-            map(hihatAvgs, 0, 255, window.innerHeight / 2, 0),
-            horizontalScaling * spectrum.hzToIndex(8000),
-            map(hihatAvgs, 0, 255, window.innerHeight / 2, 0)
-        );
-
-        beginShape();
-        spectrum.history.hihatAvgs.get().forEach((x, i, a) => {
-            vertex(horizontalScaling * i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
-            if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
-                strokeWeight(5);
-                point(horizontalScaling * i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
-                strokeWeight(1);
-            }
-        });
-
-        endShape();
-
-		stroke(128, 0,0);
-		let volumeAmpsAvg = mean(...SpectrumTuplesSortedByAmp.slice(-64).map(x => x[1]));
-		spectrum.history.entireVolumes.append(volumeAmpsAvg);
-		beginShape();
-		stroke(128, 128, 128);
-		spectrum.history.entireVolumes.get().forEach((x, i, a) => {
-			colorMode(RGB);
-			vertex(horizontalScaling * i, map(x, 0, 255, height, height / 2));
-			if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
-				strokeWeight(5);
-				point(horizontalScaling * i, map(x, 0, 255, height, height / 2));
-				strokeWeight(1);
-			}
-		});
-
-		endShape();
-
-        /*let exaggeratedTonalSums =spectrum.tonalSums.map(x=>x**6);
+        let exaggeratedTonalSums = spectrum.tonalSums.map(x => x ** 6);
         let entireSum = sum(...exaggeratedTonalSums);
         let actualSum = 0, part;
-        let sortedTonalSums = exaggeratedTonalSums.map((x,i)=>[i,x]);//.sort((a,b) => a[1]-b[1]);
-        sortedTonalSums.forEach((tonalSum,i)=>{
-            part=tonalSum[1]/entireSum;
-            spectrum.history.processedTonalSums[tonalSum[0]].append([map(actualSum,0,1,height,height/2),map(actualSum+part,0,1,height,height/2)]);
-            actualSum+=part;
-        });/**/
+        let sortedTonalSums = exaggeratedTonalSums.map((x, i) => [i, x]);//.sort((a,b) => a[1]-b[1]);
+        sortedTonalSums.forEach((tonalSum, i) => {
+            part = tonalSum[1] / entireSum;
+            spectrum.history.processedTonalSums[tonalSum[0]].append([map(actualSum, 0, 1, height, height / 2), map(actualSum + part, 0, 1, height, height / 2)]);
+            actualSum += part;
+        });
+        spectrum.history.processedTonalSums.forEach((history, tone) => {
+            stroke(myScaleHues[tone], 100, 100);
+            history.get().forEach((x, i) => {
+                line(horizontalScaling * i, x[0], horizontalScaling * i, x[1]);
+            })
+        });
+    }
 
+    function drawHistory(history) {
+        beginShape();
+        history.forEach((x, i, a) => {
+            vertex(i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
+            if (x !== 0 && x === Math.max(...a.slice(i - 12, i + 12))) {
+                strokeWeight(5);
+                point(i, map(x, 0, 255, window.innerHeight, window.innerHeight / 2));
+                strokeWeight(1);
+            }
+        });
+        endShape();
+    }
+
+    function averageFrequencies(fromHZ,toHZ,history) {
+        let avgs = mean(...spectrum.datapoints.slice(spectrum.hzToIndex(fromHZ), spectrum.hzToIndex(toHZ)));
+        history.append(avgs);
+
+        line(Math.log2(spectrum.hzToIndex(fromHZ)) * horizontalScaling,
+            map(avgs, 0, 255, window.innerHeight / 2, 0),
+            Math.log2(spectrum.hzToIndex(toHZ)) * horizontalScaling,
+            map(avgs, 0, 255, window.innerHeight / 2, 0)
+        );
+
+        drawHistory(history.get());
+    }
+
+    function getChord(amps) {
+        let intervals = amps
+            .map(x => x[0])
+            .map((x, i, a) =>
+                a.slice(i)
+                    .concat(a.slice(0, i))
+                    );
+        return intervals
+            .map((x) => [myScale[x[0]],(chordFromNotes[
+                x.map(y=> (y - x[0] + 12) % 12)
+            .sort((a, b) => a - b)
+            .join()])])
+            .filter(x=>x[1])
+            .map(x=>`${x[0]}${x[1]}`);
+    };
+
+    function draw() {
         colorMode(HSB);
-        /*spectrum.history.processedTonalSums.forEach((history,tone) =>{
-            stroke(myScaleHues[tone],100,100);
-            history.get().forEach((x,i)=>{
-                line(horizontalScaling*i,x[0],horizontalScaling*i,x[1]);
-			})
-		});*/
-		colorMode(RGB);
-	}
+        background(0);
+        noFill();
+        spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
+        spectrum.difference = lastSpectrumData&&spectrum.datapoints.map((x,i)=>x-lastSpectrumData[i]);
+        peakDetect.update(fft);
+        spectrum.history.peaks.append(peakDetect.isDetected);
+
+        spectrum.dataTuples = spectrum.datapoints.slice(0, spectrum.pointsToAnalyze).map((x, i) => [i, x]);  //slice to analyze only 0 - 5012.5 Hz, first is index, second amplitude
+
+
+        stroke(0, 0, 100);
+
+        drawSpectrum(spectrum.datapoints);
+        drawSpectrum(spectrum.difference);
+        let SpectrumTuplesSortedByAmp = spectrum.dataTuples.sort((a, b) => a[1] - b[1]);
+        stroke(300, 100, 100);
+        strokeWeight(1);
+
+        drawOctaveBands();
+        strokeWeight(15);
+        spectrum.tonalAmps = tonalFrequencies.map((x, i, a) => [x, spectrum.getInterpolatedAmp(x)]);      //interpolated tone amplitudes
+        spectrum.history.tonalAmps.append(spectrum.tonalAmps);
+        spectrum.tonalSums = Array(12).fill(0);
+        drawTonalAmplitudes();
+
+		spectrum.tonalAmps.map((x, i, a) => {
+			sortedE = [a[i-6],a[i-1],a[i+1],a[i+6]].filter(x=>x).map(x=>x[1]);
+			 spectrum.tonalSums[i % 12] += ((x[1] - Math.max(...sortedE)));	//*((i-i%12)/12+1);
+            return (x[1] / mean(...sortedE))||0;
+		});
+        spectrum.history.tonalSums.append(spectrum.tonalSums);
+		spectrum.tonalSums = ((avg, min) => spectrum.tonalSums.map((x, i, a) => Math.min(map(x, min, avg, 0, 0.5), 1)))(mean(...spectrum.tonalSums), Math.min(...spectrum.tonalSums));    //normalization
+        drawTonalSums();
+
+        ((tonalSums) =>
+            out(tonalSums.map((x,i,a) =>
+                getChord(a.slice(0,i))
+            ).join("<br>"))
+        )(spectrum.tonalSums.map((x,i) => [i,x]).sort((a, b) => b[1] - a[1]));
+
+
+
+        strokeWeight(1);
+        stroke(50, 100, 100);
+
+
+        averageFrequencies(4000,8000,spectrum.history.hihatAvgs);
+        stroke(0, 100, 100);
+        averageFrequencies(1,80,spectrum.history.kickAvgs);
+
+		let volumeAmpsAvg = mean(...SpectrumTuplesSortedByAmp.slice(-64).map(x => x[1]));
+		spectrum.history.entireVolumes.append(volumeAmpsAvg);
+		stroke(0, 0, 50);
+		drawHistory(spectrum.history.entireVolumes.get());
+        stroke(240, 100, 100);
+        spectrum.history.peaks.get().forEach((x, i, a) => {
+            x&&line(i, window.innerHeight,i, window.innerHeight / 2);
+        });
+
+        //drawTonalSpectrum(8);
+        lastSpectrumData = spectrum.datapoints;
+    }
 
 
 </script>
