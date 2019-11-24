@@ -1,0 +1,602 @@
+let Detect = require("tonal-detect");       //this works because of browserify
+
+const DEBUG = false;
+
+let notesFromChords = {
+  "+add#9": [0, 3, 4, 8],
+  "11": [0, 2, 5, 7, 10],
+  "11b9": [0, 1, 5, 7, 10],
+  "13": [0, 2, 4, 7, 9, 10],
+  "13#11": [0, 2, 4, 6, 7, 9, 10],
+  "13#9": [0, 3, 4, 7, 9, 10],
+  "13#9#11": [0, 3, 4, 6, 7, 9, 10],
+  "13b5": [0, 2, 4, 6, 9, 10],
+  "13b9": [0, 1, 4, 7, 9, 10],
+  "13b9#11": [0, 1, 4, 6, 7, 9, 10],
+  "13no5": [0, 2, 4, 9, 10],
+  "13sus4": [0, 2, 5, 7, 9, 10],
+  "64": [0, 4, 7],
+  "7": [0, 4, 7, 10],
+  "7#11": [0, 4, 6, 7, 10],
+  "7#11b13": [0, 4, 6, 7, 8, 10],
+  "7#5": [0, 4, 8, 10],
+  "7#5#9": [0, 3, 4, 8, 10],
+  "7#5b9": [0, 1, 4, 8, 10],
+  "7#5b9#11": [0, 1, 4, 6, 8, 10],
+  "7#5sus4": [0, 5, 8, 10],
+  "7#9": [0, 3, 4, 7, 10],
+  "7#9#11": [0, 3, 4, 6, 7, 10],
+  "7#9#11b13": [0, 3, 4, 6, 7, 8, 10],
+  "7#9b13": [0, 3, 4, 7, 8, 10],
+  "7add6": [0, 4, 7, 9, 10],
+  "7b13": [0, 4, 8, 10],
+  "7b5": [0, 4, 6, 10],
+  "7b6": [0, 4, 7, 8, 10],
+  "7b9": [0, 1, 4, 7, 10],
+  "7b9#11": [0, 1, 4, 6, 7, 10],
+  "7b9#9": [0, 1, 3, 4, 7, 10],
+  "7b9b13": [0, 1, 4, 7, 8, 10],
+  "7b9b13#11": [0, 1, 4, 6, 7, 8, 10],
+  "7no5": [0, 4, 10],
+  "7sus4": [0, 5, 7, 10],
+  "7sus4b9": [0, 1, 5, 7, 10],
+  "7sus4b9b13": [0, 1, 5, 7, 8, 10],
+  "9": [0, 2, 4, 7, 10],
+  "9#11": [0, 2, 4, 6, 7, 10],
+  "9#11b13": [0, 2, 4, 6, 7, 8, 10],
+  "9#5": [0, 2, 4, 8, 10],
+  "9#5#11": [0, 2, 4, 6, 8, 10],
+  "9b13": [0, 2, 4, 8, 10],
+  "9b5": [0, 2, 4, 6, 10],
+  "9no5": [0, 2, 4, 10],
+  "9sus4": [0, 2, 5, 7, 10],
+  "M": [0, 4, 7],
+  "M#5": [0, 4, 8],
+  "M#5add9": [0, 2, 4, 8],
+  "M13": [0, 2, 4, 7, 9, 11],
+  "M13#11": [0, 2, 4, 6, 7, 9, 11],
+  "M6": [0, 4, 7, 9],
+  "M6#11": [0, 4, 6, 7, 9],
+  "M69": [0, 2, 4, 7, 9],
+  "M69#11": [0, 2, 4, 6, 7, 9],
+  "M7#11": [0, 4, 6, 7, 11],
+  "M7#5": [0, 4, 8, 11],
+  "M7#5sus4": [0, 5, 8, 11],
+  "M7#9#11": [0, 3, 4, 6, 7, 11],
+  "M7add13": [0, 2, 4, 7, 9, 11],
+  "M7b5": [0, 4, 6, 11],
+  "M7b6": [0, 4, 8, 11],
+  "M7b9": [0, 1, 4, 7, 11],
+  "M7sus4": [0, 5, 7, 11],
+  "M9": [0, 2, 4, 7, 11],
+  "M9#11": [0, 2, 4, 6, 7, 11],
+  "M9#5": [0, 2, 4, 8, 11],
+  "M9#5sus4": [0, 2, 5, 8, 11],
+  "M9b5": [0, 2, 4, 6, 11],
+  "M9sus4": [0, 2, 5, 7, 11],
+  "Madd9": [0, 2, 4, 7],
+  "Maddb9": [0, 1, 4, 7],
+  "Maj7": [0, 4, 7, 11],
+  "Mb5": [0, 4, 6],
+  "Mb6": [0, 4, 8],
+  "Msus2": [0, 2, 7],
+  "Msus4": [0, 5, 7],
+  "m": [0, 3, 7],
+  "m#5": [0, 3, 8],
+  "m11": [0, 2, 3, 5, 7, 10],
+  "m11A 5": [0, 2, 3, 5, 8, 10],
+  "m11b5": [0, 2, 3, 5, 6, 10],
+  "m13": [0, 2, 3, 5, 7, 9, 10],
+  "m6": [0, 3, 5, 7, 9],
+  "m69": [0, 2, 3, 7, 9],
+  "m7": [0, 3, 7, 10],
+  "m7#5": [0, 3, 8, 10],
+  "m7add11": [0, 3, 5, 7, 10],
+  "m7b5": [0, 3, 6, 10],
+  "m9": [0, 2, 3, 7, 10],
+  "m9#5": [0, 2, 3, 8, 10],
+  "m9b5": [0, 2, 3, 6, 10],
+  "mM9": [0, 2, 3, 7, 11],
+  "mM9b6": [0, 2, 3, 7, 8, 11],
+  "mMaj7": [0, 3, 7, 11],
+  "mMaj7b6": [0, 3, 7, 8, 11],
+  "madd4": [0, 3, 5, 7],
+  "madd9": [0, 2, 3, 7],
+  "mb6M7": [0, 3, 8, 11],
+  "mb6b9": [0, 1, 3, 8],
+  "o": [0, 3, 6],
+  "o7": [0, 3, 6, 9],
+  "o7M7": [0, 3, 6, 9, 11],
+  "oM7": [0, 3, 6, 11],
+  "sus24": [0, 2, 5, 7]
+};
+let chordFromNotes = {
+  "0,4,7,10": "7",
+  "0,2,4,7,10": "9",
+  "0,2,4,7,9,10": "13",
+  "0,3,4,8": "+add#9",
+  "0,1,5,7,10": "11b9",
+  "0,2,4,6,7,9,10": "13#11",
+  "0,3,4,7,9,10": "13#9",
+  "0,3,4,6,7,9,10": "13#9#11",
+  "0,2,4,6,9,10": "13b5",
+  "0,1,4,7,9,10": "13b9",
+  "0,1,4,6,7,9,10": "13b9#11",
+  "0,2,4,9,10": "13no5",
+  "0,2,5,7,9,10": "13sus4",
+  "0,4,6,7,10": "7#11",
+  "0,4,6,7,8,10": "7#11b13",
+  "0,4,8,10": "7#5",
+  "0,3,4,8,10": "7#5#9",
+  "0,1,4,8,10": "7#5b9",
+  "0,1,4,6,8,10": "7#5b9#11",
+  "0,5,8,10": "7#5sus4",
+  "0,3,4,7,10": "7#9",
+  "0,3,4,6,7,10": "7#9#11",
+  "0,3,4,6,7,8,10": "7#9#11b13",
+  "0,3,4,7,8,10": "7#9b13",
+  "0,4,7,9,10": "7add6",
+  "0,4,6,10": "7b5",
+  "0,4,7,8,10": "7b6",
+  "0,1,4,7,10": "7b9",
+  "0,1,4,6,7,10": "7b9#11",
+  "0,1,3,4,7,10": "7b9#9",
+  "0,1,4,7,8,10": "7b9b13",
+  "0,1,4,6,7,8,10": "7b9b13#11",
+  "0,4,10": "7no5",
+  "0,5,7,10": "7sus4",
+  "0,1,5,7,8,10": "7sus4b9b13",
+  "0,2,4,6,7,10": "9#11",
+  "0,2,4,6,7,8,10": "9#11b13",
+  "0,2,4,8,10": "9#5",
+  "0,2,4,6,8,10": "9#5#11",
+  "0,2,4,6,10": "9b5",
+  "0,2,4,10": "9no5",
+  "0,2,5,7,10": "9sus4",
+  "0,4,7": "M",
+  "0,4,8": "M#5",
+  "0,2,4,8": "M#5add9",
+  "0,2,4,7,9,11": "M13",
+  "0,2,4,6,7,9,11": "M13#11",
+  "0,4,7,9": "M6",
+  "0,4,6,7,9": "M6#11",
+  "0,2,4,7,9": "M69",
+  "0,2,4,6,7,9": "M69#11",
+  "0,4,6,7,11": "M7#11",
+  "0,4,8,11": "M7#5",
+  "0,5,8,11": "M7#5sus4",
+  "0,3,4,6,7,11": "M7#9#11",
+  "0,4,6,11": "M7b5",
+  "0,1,4,7,11": "M7b9",
+  "0,5,7,11": "M7sus4",
+  "0,2,4,7,11": "M9",
+  "0,2,4,6,7,11": "M9#11",
+  "0,2,4,8,11": "M9#5",
+  "0,2,5,8,11": "M9#5sus4",
+  "0,2,4,6,11": "M9b5",
+  "0,2,5,7,11": "M9sus4",
+  "0,2,4,7": "Madd9",
+  "0,4,7,11": "Maj7",
+  "0,4,6": "Mb5",
+  "0,2,7": "Msus2",
+  "0,5,7": "Msus4",
+  "0,3,7": "m",
+  "0,3,8": "m#5",
+  "0,2,3,5,7,10": "m11",
+  "0,2,3,5,8,10": "m11A 5",
+  "0,2,3,5,6,10": "m11b5",
+  "0,2,3,5,7,9,10": "m13",
+  "0,3,5,7,9": "m6",
+  "0,2,3,7,9": "m69",
+  "0,3,7,10": "m7",
+  "0,3,8,10": "m7#5",
+  "0,3,5,7,10": "m7add11",
+  "0,3,6,10": "m7b5",
+  "0,2,3,7,10": "m9",
+  "0,2,3,8,10": "m9#5",
+  "0,2,3,6,10": "m9b5",
+  "0,2,3,7,11": "mM9",
+  "0,2,3,7,8,11": "mM9b6",
+  "0,3,7,11": "mMaj7",
+  "0,3,7,8,11": "mMaj7b6",
+  "0,3,5,7": "madd4",
+  "0,2,3,7": "madd9",
+  "0,3,8,11": "mb6M7",
+  "0,1,3,8": "mb6b9",
+  "0,3,6": "o",
+  "0,3,6,9": "o7",
+  "0,3,6,9,11": "o7M7",
+  "0,3,6,11": "oM7",
+  "0,2,5,7": "sus24"
+};
+
+let out = (where => (...what) => {
+  where.innerHTML = what;
+  return what;
+})(document.getElementById("out"));
+
+let sum = (...a) => a.reduce((a, b) => a + b);
+let mean = (...a) => sum(...a) / a.length;
+let product = (...a) => a.reduce((a, b) => a * b);
+let geoMean = (...a) => Math.abs(product(...a)) ** (1 / a.length);
+
+function lagrangeQuadraticInterpolation(points, x) {
+  if (!points[0] || !points[1] || !points[2]) return 0;
+  let x_1 = points[0][0], y_1 = points[0][1];
+  let x_2 = points[1][0], y_2 = points[1][1];
+  let x_3 = points[2][0], y_3 = points[2][1];
+  return y_1 * (x - x_2) * (x - x_3) / ((x_1 - x_2) * (x_1 - x_3))
+    + y_2 * (x - x_1) * (x - x_3) / ((x_2 - x_1) * (x_2 - x_3))
+    + y_3 * (x - x_1) * (x - x_2) / ((x_3 - x_1) * (x_3 - x_2))
+}
+
+let getNearestIndexes = (array, where, n) => {      //optimalize
+  return array.slice(Math.max(Math.round(where - n / 2), 0), Math.round(where + n / 2))
+};
+
+
+function SlidingArray(length, item = 0) {
+  this.length = length;
+  this.datapoints = Array(this.length).fill(item);
+  this.index = 0;
+  this.append = (x) => {
+    this.datapoints[this.index] = x;
+    this.index = (this.index + 1) % this.length;
+  };
+  this.get = () => [...this.datapoints.slice(this.index, this.length), ...this.datapoints.slice(0, this.index)];
+}
+
+
+P5 = p5;
+
+new P5((s) => {
+
+  function Spectrum(smoothing, fourierPoints, pointsToAnalyze, pointsToShow) {
+    this.smoothing = smoothing;		//makes sense from 3/4 to 23/24
+    this.fourierPoints = fourierPoints;   //this needs to be 2^n
+    this.samplingFrequency = 44100;         //this needs to be same as in operating system
+    this.pointsToAnalyze = pointsToAnalyze;
+    this.pointsToShow = pointsToShow;
+    this.indexToHz = i => i * (this.samplingFrequency / 2) / this.fourierPoints;
+    this.hzToIndex = hz => hz * this.fourierPoints / (this.samplingFrequency / 2);
+    this.datapoints = [];
+    this.tonalAmps = [];
+    this.tonalSums = [];
+    this.base = 110;
+    this.step = 2 ** (1 / 12);
+    this.octaves = 6;
+    this.framesToAnalyze = 6 * 60;
+    this.history = {
+      kickAvgs: new SlidingArray(this.framesToAnalyze), //kick averages
+      hihatAvgs: new SlidingArray(this.framesToAnalyze), //hihat averages
+      entireVolumes: new SlidingArray(this.framesToAnalyze),
+      tonalAmps: new SlidingArray(this.framesToAnalyze, [0]),
+      tonalSums: new SlidingArray(this.framesToAnalyze, [0]),
+      processedTonalSums: Array(12).fill(0).map(() => new SlidingArray(this.framesToAnalyze, [0, 0])),	//this is array itself!
+    };
+    this.tonalFrequencies = Array(12 * this.octaves).fill(0).map((x, i) => this.base * (this.step ** (i)));
+    this.getNearestPoints = (where, n) => getNearestIndexes(this.datapoints.map((x, i) => [i, x]), where, n);
+    this.getInterpolatedAmp = (hz) => {
+      return lagrangeQuadraticInterpolation(this.getNearestPoints(this.hzToIndex(hz), 3), this.hzToIndex(hz))
+    };
+    this.averageFrequencies = (fromHZ, toHZ) => {
+      let avgs = mean(...this.datapoints.slice(this.hzToIndex(fromHZ), this.hzToIndex(toHZ)));
+
+      DEBUG && s.line(Math.log2(this.hzToIndex(fromHZ)) * horizontalScaling,
+        s.map(avgs, 0, 255, window.innerHeight / 2, 0),
+        Math.log2(this.hzToIndex(toHZ)) * horizontalScaling,
+        s.map(avgs, 0, 255, window.innerHeight / 2, 0)
+      );
+
+      return avgs;
+    };
+    this.getTonalAmps = () => this.tonalFrequencies.map((x) => [x, this.getInterpolatedAmp(x)]);
+  }
+
+//TODO: masking, fft na rytmus, derivácia nôt, time eventing, spotify
+
+  let mic;
+  let fft;
+  let lastSpectrumData;
+  let spectrum = new Spectrum(27 / 32, 2048, 512, 512);
+  let myScale = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
+  let myScaleHues = [90, 300, 150, 0, 210, 60, 270, 120, 330, 180, 30, 240];
+
+  let horizontalScaling = 128 + 64 - 4;
+
+  let positions = {
+    beatPosition: 0,
+    tatumPosition: 0,
+    barPosition: 0,
+    segmentPosition: 0,
+    sectionPosition: 0
+  };
+
+  let config = {
+    inputs: {
+      kick: {name: "kick", fx: (spectrum, positions) => spectrum.averageFrequencies(1, 80)},
+      hiHat: {name: "hiHat", fx: (spectrum, positions) => spectrum.averageFrequencies(4000, 8000)},
+      notes: {name: "notes", fx: (spectrum, positions) => {
+          return spectrum.tonalFrequencies.map((x) => {
+            let freq1 = spectrum.getInterpolatedAmp(x/(spectrum.step**(1/2)));
+            let freq2 = spectrum.getInterpolatedAmp(x*(spectrum.step**(1/2)));
+            let freq3 = spectrum.getInterpolatedAmp(x/(spectrum.step**(1)));
+            let freq4 = spectrum.getInterpolatedAmp(x*(spectrum.step**(1)));
+            return Math.max(0,spectrum.getInterpolatedAmp(x) - (freq1+freq2+freq3+freq4)/4);
+          });
+        }},
+      tones: {
+        name: "tones", fx: (spectrum, positions) => {
+        }
+      },
+      beat: {name: "beat", fx: (spectrum, positions) => positions.beatPosition}
+    },
+    outputs:
+      [{type: "pulse", x: 10, y: 10, color: "white", radius: 20, input: "kick", fx: x => x}] //pulse, ray, spectrum
+  };
+
+  let playerState, trackAnalysis;
+  s.setup = () => {
+
+    s.rectMode(s.CORNERS);
+    s.colorMode(s.HSB);
+    s.createCanvas(window.innerWidth, window.innerHeight * 2);
+    s.noFill();
+    mic = new p5.AudioIn();
+    mic.start();
+    fft = new p5.FFT(spectrum.smoothing, spectrum.fourierPoints);
+    fft.setInput(mic);
+    s.stroke(255, 100, 0);
+
+
+    let access_token;
+
+    (function () {
+      let stateKey = 'spotify_auth_state';
+
+      /**
+       * Obtains parameters from the hash of the URL
+       * @return Object
+       */
+      function getHashParams() {
+        let hashParams = {};
+        let e, r = /([^&;=]+)=?([^&;]*)/g,
+          q = window.location.hash.substring(1);
+        while (e = r.exec(q)) {
+          hashParams[e[1]] = decodeURIComponent(e[2]);
+        }
+        return hashParams;
+      }
+
+      /**
+       * Generates a random string containing numbers and letters
+       * @param  {number} length The length of the string
+       * @return {string} The generated string
+       */
+      function generateRandomString(length) {
+        let possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        return Array(length).fill(0).map(() => possible.charAt(Math.floor(Math.random() * possible.length))).join('');
+      }
+
+      let params = getHashParams();
+      let state, storedState;
+      access_token = params["access_token"];
+      state = params.state;
+      storedState = localStorage.getItem(stateKey);
+      if (access_token && (state == null || state !== storedState)) {
+        alert('There was an error during the authentication');
+      } else {
+        localStorage.removeItem(stateKey);
+        if (access_token) {
+          let request = new XMLHttpRequest();
+          request.open('GET', 'https://api.spotify.com/v1/me', true);
+          request.setRequestHeader('Authorization', 'Bearer ' + access_token);
+          request.onload = function () {
+            if (this.status >= 200 && this.status < 400) {
+              //userProfilePlaceholder.innerHTML = userProfileTemplate(this.response);
+              document.getElementById('login').style.display = 'none';
+              document.getElementById('loggedin').style.display = '';
+            } else {
+              console.log(this.error);
+
+            }
+          };
+        } else {
+          document.getElementById('login').style.display = '';
+          document.getElementById('loggedin').style.display = 'none';
+        }
+        document.getElementById('login-button').addEventListener('click', function () {
+          let client_id = 'c37229f0961e4f60863ee0cdda8b68f0'; // Your client id
+          let redirect_uri = 'http://localhost:63342/fourier/main.html'; // Your redirect uri
+          let state = generateRandomString(16);
+          localStorage.setItem(stateKey, state);
+          let scope = 'user-read-private user-read-email';
+          let url = 'https://accounts.spotify.com/authorize';
+          url += '?response_type=token';
+          url += '&client_id=' + encodeURIComponent(client_id);
+          url += '&scope=' + encodeURIComponent(scope);
+          url += '&redirect_uri=' + encodeURIComponent(redirect_uri);
+          url += '&state=' + encodeURIComponent(state);
+          window.location = url;
+        }, false);
+      }
+    })();
+
+    const spotifyApi = new SpotifyWebApi();
+    spotifyApi.setAccessToken(access_token);
+    playerState = spotifyApi.getMyCurrentPlaybackState().then(state => {
+      console.log(state);
+      state.realTimestamp = Date.now() - state.progress_ms;
+      return state;
+    });
+    trackAnalysis = playerState.then(state => spotifyApi.getAudioAnalysisForTrack(state.item.id).then(function (analysis) {
+        console.log(analysis);
+        return analysis;
+      })
+    );
+
+    config.outputs.push({
+      input: "notes",
+      fx:((x, y) => notes => {
+        notes.forEach((note, i)  => {
+          s.stroke(myScaleHues[i % 12], 100, 100);
+          s.ellipse(x+i*23,y-note*2, 3+note*3);
+        });
+      })(100,800)
+
+    });
+  };
+
+
+  function drawSpectrum(points) {
+    s.strokeWeight(1);
+    if (!points) return;
+    s.beginShape();
+    for (let i = 0; i < points.length; i++) {    //draw spectrum
+      s.vertex(horizontalScaling * Math.log2(i), s.map(points[i], 0, 255, window.innerHeight / 2, 0));
+    }
+    s.endShape();
+  }
+
+  function drawOctaveBands() {
+    s.strokeWeight(1);
+    for (let i = 0; i < spectrum.octaves + 1; i++) {        //octave bands, tone A
+      s.line(Math.log2(spectrum.hzToIndex(spectrum.base * 2 ** i)) * horizontalScaling, 0, Math.log2(spectrum.hzToIndex(spectrum.base * 2 ** i)) * horizontalScaling, window.innerHeight / 2);
+    }
+  }
+
+  function drawTonalAmplitudes(tonalAmps) {
+    s.strokeWeight(15);
+    tonalAmps.forEach((x, i) => {     //draw interpolated tone amplitudes
+      s.stroke(myScaleHues[i % 12], 100, x[1]);
+      s.point(Math.log2(spectrum.hzToIndex(x[0])) * horizontalScaling, s.map(x[1], 0, 255, window.innerHeight / 2, 0));
+    });
+  }
+
+  let objects = [];
+
+  s.draw = () => {
+    s.fill(0, 0, 0, 60/255);
+    s.rect(0, 0, window.innerWidth, window.innerHeight);
+    s.noFill();
+    spectrum.datapoints = fft.analyze().slice(0, spectrum.pointsToShow);       //slice to show only 0 - 10025 Hz
+    spectrum.difference = lastSpectrumData && spectrum.datapoints.map((x, i) => x - lastSpectrumData[i]);
+
+
+    s.stroke(0, 0, 100);
+
+    drawSpectrum(spectrum.datapoints);
+    drawSpectrum(spectrum.difference);
+    s.stroke(300, 100, 100);
+    s.strokeWeight(1);
+
+    drawOctaveBands();
+    let tonalAmps = spectrum.getTonalAmps();      //interpolated tone amplitudes
+    spectrum.history.tonalAmps.append(tonalAmps);
+    drawTonalAmplitudes(tonalAmps);
+
+
+    s.strokeWeight(1);
+
+
+    config.inputValues = Object.fromEntries(Object.entries(config.inputs).map(([k, {fx}]) => [k, fx(spectrum, positions)]));
+
+    config.outputs.forEach(output => {
+      output.fx(config.inputValues[output.input]);
+
+    });
+
+    let samplePulse  = {
+      input: "beat",
+      fx: ((x, y) => v => {
+          s.stroke(30, 100, 100);
+          out(v);
+          s.ellipse(x, y,(1-Math.abs(1-2*v))**2*100)
+      })(s.mouseX, s.mouseY)
+    };
+    let sampleFlees = {
+      input: "beat",
+      fx:((x, y) => v => {
+        if(v<1/8||Math.random()<1/64){
+        objects.push({
+          point: {x:x+Math.random()-1/2, y: y+Math.random()-1/2},
+          life: 30,
+          color: [300,100,100]
+        });
+        }
+      })(s.mouseX, s.mouseY)
+
+    };
+    objects.forEach((x,i) => {
+      s.noStroke();
+      s.fill((
+        x.color[0]+(s.noise(Date.now()/4096*87/89,x.point.x,x.point.y)-1/2)*60),
+        x.color[1],
+        x.color[2]*(1-(30-x.life)/30)
+      );
+      s.ellipse(
+        x.point.x+(s.noise(Date.now()/4096*71/73,x.point.x*4,x.point.y*4)-1/2)*((30 - x.life)/30)*300,
+        x.point.y+(s.noise(Date.now()/4096,x.point.x*4,x.point.y*4)-1/2)*((30 - x.life)/30)*300,
+        5);
+      x.life--;
+      if(x.life===0) {
+        objects[i] = objects[objects.length-1];
+        objects.pop();
+      }});
+
+    if (s.mouseIsPressed) {
+      config.outputs.push(sampleFlees);
+    }
+    s.stroke(255);
+    lastSpectrumData = spectrum.datapoints;
+    playerState.then(function (playerState) {
+      s.line(
+        s.windowWidth * ((Date.now() - playerState.realTimestamp) / playerState.item.duration_ms * 0.8 + 0.2),
+        0,
+        s.windowWidth * ((Date.now() - playerState.realTimestamp) / playerState.item.duration_ms * 0.8 + 0.2),
+        s.windowHeight / 2
+      );
+      trackAnalysis.then(function (trackAnalysis) {
+        trackAnalysis.sections.forEach(function (section, index) {
+          s.line(
+            s.windowWidth * ((section.start) / trackAnalysis.track.duration * 0.8 + 0.2),
+            0,
+            s.windowWidth * ((section.start) / trackAnalysis.track.duration * 0.8 + 0.2),
+            s.windowHeight / 2
+          )
+        });
+
+        let getPresentObject = (objects) => objects.filter(function (beat) {
+          return beat.start < (Date.now() - playerState.realTimestamp) / 1000 &&
+            (Date.now() - playerState.realTimestamp) / 1000 < beat.start + beat.duration
+        })[0];
+
+        let actualBeat = getPresentObject(trackAnalysis.beats);
+        let actualTatum = getPresentObject(trackAnalysis.tatums);
+        let actualBar = getPresentObject(trackAnalysis.bars);
+        let actualSegment = getPresentObject(trackAnalysis.segments);
+        let actualSection = getPresentObject(trackAnalysis.sections);
+
+        positions.beatPosition = (((Date.now() - playerState.realTimestamp) / 1000 - actualBeat.start) / actualBeat.duration);
+        positions.tatumPosition = (((Date.now() - playerState.realTimestamp) / 1000 - actualTatum.start) / actualTatum.duration);
+        positions.barPosition = (((Date.now() - playerState.realTimestamp) / 1000 - actualBar.start) / actualBar.duration);
+        positions.segmentPosition = (((Date.now() - playerState.realTimestamp) / 1000 - actualSegment.start) / actualSegment.duration);
+        positions.sectionPosition = (((Date.now() - playerState.realTimestamp) / 1000 - actualSection.start) / actualSection.duration);
+
+        s.ellipse(50, 100 + (1-Math.abs(1-2*positions.segmentPosition))**2 * 100, 50);
+        s.ellipse(250, 100 + (1-Math.abs(1-2*positions.beatPosition))**2 * 100, 50);
+        s.ellipse(150, 100 + (1-Math.abs(1-2*positions.tatumPosition))**2 * 100, 50);
+        s.ellipse(350, 100 + (1-Math.abs(1-2*positions.barPosition))**2 * 100, 50);
+
+
+        s.line(s.windowWidth * 0.6, s.windowHeight * 0.5, s.windowWidth * 0.6, s.windowHeight)
+
+      })
+
+    })
+
+  }
+
+
+});
+
