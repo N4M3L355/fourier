@@ -210,6 +210,71 @@ let chordFromNotes = {
   "0,2,5,7": "sus24"
 };
 
+let config = {
+  graphical: (s, objects) => ({
+    inputs: {
+      kick: {name: "kick", fx: (spectrum, positions) => spectrum.averageFrequencies(1, 80)},
+      hiHat: {name: "hiHat", fx: (spectrum, positions) => spectrum.averageFrequencies(4000, 8000)},
+      notes: {
+        name: "notes", fx: (spectrum, positions) => {
+          return spectrum.tonalFrequencies.map((x) => {
+            let freqs = [spectrum.getInterpolatedAmp(x / (spectrum.step ** (1 / 2))),
+              spectrum.getInterpolatedAmp(x * (spectrum.step ** (1 / 2))),
+              spectrum.getInterpolatedAmp(x / (spectrum.step ** (1))),
+              spectrum.getInterpolatedAmp(x * (spectrum.step ** (1)))];
+            let firstTwo = mean(...freqs.sort((a, b) => b - a).slice(0, 2));
+            return Math.max(0, spectrum.getInterpolatedAmp(x) - firstTwo)*(4096/x);
+          });
+        }
+      },
+      tones: {
+        name: "tones", fx: (spectrum, positions) => {
+        }
+      },
+      beat: {name: "beat", fx: (spectrum, positions) => positions.beatPosition},
+      tatum: {name: "tatum", fx: (spectrum, positions) => positions.tatumPosition},
+      bar: {name: "bar", fx: (spectrum, positions) => positions.barPosition}
+    },
+    brushes: {
+      pulse: (x, y) => ({
+        name: "pulse",
+        input: "tatum",
+        fx: v => {
+          s.stroke(30, 100, 100);
+          out(v);
+          s.ellipse(x, y, (1 - Math.abs(1 - 2 * v)) ** 2 * 100)
+        }
+      }),
+      flees: (x, y) => ({
+        name: "flees",
+        input: "beat",
+        fx: v => {
+          if ((v < 1 / 8) || Math.random() < 1 / 64) {
+            objects.push(new function () {
+              this.point = {x: x + Math.random() - 1 / 2, y: y + Math.random() - 1 / 2};
+              this.life = 30;
+              this.color = [150 + Math.random() * 300, 100, 100];
+              this.fx = () => {
+                s.noStroke();
+                s.fill(
+                  this.color[0] + (s.noise(Date.now() / 4096 * 87 / 89, this.point.x, this.point.y) - 1 / 2) * 60,
+                  this.color[1],
+                  this.color[2] * (1 - (30 - this.life) / 30)
+                );
+                s.ellipse(
+                  this.point.x + (s.noise(Date.now() / 4096 * 71 / 73, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((30 - this.life) / 30) * 300,
+                  this.point.y + (s.noise(Date.now() / 4096, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((30 - this.life) / 30) * 300,
+                  5);
+              }
+            });
+          }
+        }
+      }) //pulse, ray, spectrum
+    },
+    outputs: []
+  })
+};
+
 let out = (where => (...what) => {
   where.innerHTML = what;
   return what;
@@ -298,9 +363,9 @@ new P5((s) => {
   let mic;
   let fft;
   let lastSpectrumData;
-  let spectrum = new Spectrum(27 / 32, 2048, 512, 512);
+  let spectrum = new Spectrum(27 / 32, 1024, 512, 512);
   let myScale = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
-  let myScaleHues = [90, 300, 150, 0, 210, 60, 270, 120, 330, 180, 30, 240];
+  let myScaleHues = [45, 300, 105, 0, 195, 30, 270, 60, 330, 150, 15, 240];
 
   let horizontalScaling = 128 + 64 - 4;
 
@@ -311,29 +376,8 @@ new P5((s) => {
     segmentPosition: 0,
     sectionPosition: 0
   };
-
-  let config = {
-    inputs: {
-      kick: {name: "kick", fx: (spectrum, positions) => spectrum.averageFrequencies(1, 80)},
-      hiHat: {name: "hiHat", fx: (spectrum, positions) => spectrum.averageFrequencies(4000, 8000)},
-      notes: {name: "notes", fx: (spectrum, positions) => {
-          return spectrum.tonalFrequencies.map((x) => {
-            let freq1 = spectrum.getInterpolatedAmp(x/(spectrum.step**(1/2)));
-            let freq2 = spectrum.getInterpolatedAmp(x*(spectrum.step**(1/2)));
-            let freq3 = spectrum.getInterpolatedAmp(x/(spectrum.step**(1)));
-            let freq4 = spectrum.getInterpolatedAmp(x*(spectrum.step**(1)));
-            return Math.max(0,spectrum.getInterpolatedAmp(x) - (freq1+freq2+freq3+freq4)/4);
-          });
-        }},
-      tones: {
-        name: "tones", fx: (spectrum, positions) => {
-        }
-      },
-      beat: {name: "beat", fx: (spectrum, positions) => positions.beatPosition}
-    },
-    outputs:
-      [{type: "pulse", x: 10, y: 10, color: "white", radius: 20, input: "kick", fx: x => x}] //pulse, ray, spectrum
-  };
+  let objects = [];
+  config = config.graphical(s, objects);
 
   let playerState, trackAnalysis;
   s.setup = () => {
@@ -435,15 +479,30 @@ new P5((s) => {
       })
     );
 
+    let polarToCartesian = (middleX,middleY) => (radius,angle) => ({x:Math.sin(angle)*radius+middleX,y:Math.cos(angle)*radius+middleY});
+    let polarToCartesianMidScreen = polarToCartesian(window.innerWidth/2,window.innerHeight/2);
     config.outputs.push({
       input: "notes",
-      fx:((x, y) => notes => {
-        notes.forEach((note, i)  => {
-          s.stroke(myScaleHues[i % 12], 100, 100);
-          s.ellipse(x+i*23,y-note*2, 3+note*3);
-        });
-      })(100,800)
+      fx:notes => {
+        objects.push(new function () {
+          this.point = {x:100,y:800};
+          this.life = 1;
+          this.fx = () =>{
+            s.noFill();
+            s.strokeWeight(5);
+            notes.forEach((note, i)  => {
+              s.stroke(myScaleHues[i % 12], 100, 100);
+              s.line(this.point.x+i*23,this.point.y,this.point.x+i*23,this.point.y-note);
 
+              let whereFrom = polarToCartesianMidScreen(100,i*Math.PI/6/6); //7*1.0014
+              let whereTo = polarToCartesianMidScreen(100+note*3,i*Math.PI/6/6); //7*1.0014
+              s.line(whereFrom.x,whereFrom.y,whereTo.x,whereTo.y);
+              //s.ellipse(where.x,where.y, 1+note*3);
+
+            });
+          }
+        })
+      }
     });
   };
 
@@ -473,7 +532,6 @@ new P5((s) => {
     });
   }
 
-  let objects = [];
 
   s.draw = () => {
     s.fill(0, 0, 0, 60/255);
@@ -506,38 +564,9 @@ new P5((s) => {
 
     });
 
-    let samplePulse  = {
-      input: "beat",
-      fx: ((x, y) => v => {
-          s.stroke(30, 100, 100);
-          out(v);
-          s.ellipse(x, y,(1-Math.abs(1-2*v))**2*100)
-      })(s.mouseX, s.mouseY)
-    };
-    let sampleFlees = {
-      input: "beat",
-      fx:((x, y) => v => {
-        if(v<1/8||Math.random()<1/64){
-        objects.push({
-          point: {x:x+Math.random()-1/2, y: y+Math.random()-1/2},
-          life: 30,
-          color: [300,100,100]
-        });
-        }
-      })(s.mouseX, s.mouseY)
 
-    };
     objects.forEach((x,i) => {
-      s.noStroke();
-      s.fill((
-        x.color[0]+(s.noise(Date.now()/4096*87/89,x.point.x,x.point.y)-1/2)*60),
-        x.color[1],
-        x.color[2]*(1-(30-x.life)/30)
-      );
-      s.ellipse(
-        x.point.x+(s.noise(Date.now()/4096*71/73,x.point.x*4,x.point.y*4)-1/2)*((30 - x.life)/30)*300,
-        x.point.y+(s.noise(Date.now()/4096,x.point.x*4,x.point.y*4)-1/2)*((30 - x.life)/30)*300,
-        5);
+      x.fx();
       x.life--;
       if(x.life===0) {
         objects[i] = objects[objects.length-1];
@@ -545,7 +574,7 @@ new P5((s) => {
       }});
 
     if (s.mouseIsPressed) {
-      config.outputs.push(sampleFlees);
+      config.outputs.push(config.brushes["flees"](s.mouseX, s.mouseY));
     }
     s.stroke(255);
     lastSpectrumData = spectrum.datapoints;
