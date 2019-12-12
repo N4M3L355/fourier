@@ -70,21 +70,6 @@ let tonalSums = Array(12).fill(0);
 )(tonalSums.map((x, i) => [i, x]).sort((a, b) => b[1] - a[1]));
 
 //----------------------------------------
-function getChord(amps) {
-  let intervals = amps
-    .map(x => x[0])
-    .map((x, i, a) =>
-      a.slice(i)
-        .concat(a.slice(0, i))
-    );
-  return intervals
-    .map((x) => [myScale[x[0]], (chordFromNotes[
-      x.map(y => (y - x[0] + 12) % 12)
-        .sort((a, b) => a - b)
-        .join()])])
-    .filter(x => x[1])
-    .map(x => `${x[0]}${x[1]}`);
-}
 
 //----------------------------------------
 
@@ -117,3 +102,109 @@ function drawHistory(history) {
   });
   s.endShape();
 }
+
+
+//--------------inputs from config-----------------//
+x = ({
+inputs: {
+  kick: {name: "kick", fx: (spectrum, positions) => spectrum.averageFrequencies(1, 80)},
+  hiHat: {name: "hiHat", fx: (spectrum, positions) => spectrum.averageFrequencies(4000, 8000)},
+  notes: {
+    name: "notes", fx: (spectrum, positions) => {
+      return spectrum.tonalFrequencies.map((x) => {
+        let freqs = [spectrum.getInterpolatedAmp(x / (spectrum.step ** (1 / 2))),
+          spectrum.getInterpolatedAmp(x * (spectrum.step ** (1 / 2))),
+          spectrum.getInterpolatedAmp(x / (spectrum.step ** (1))),
+          spectrum.getInterpolatedAmp(x * (spectrum.step ** (1)))];
+        let firstTwo = mean(...freqs.sort((a, b) => b - a).slice(0, 2));
+        return Math.max(0, spectrum.getInterpolatedAmp(x) - firstTwo)*(4096/x);
+      });
+    }
+  },
+  tones: {
+    name: "tones", fx: (spectrum, positions) => {
+      let containers = Array(12).fill(0);
+      spectrum.tonalFrequencies.forEach((x,i) => {
+        let freqs = [spectrum.getInterpolatedAmp(x / (spectrum.step ** (1 / 2))),
+          spectrum.getInterpolatedAmp(x * (spectrum.step ** (1 / 2))),
+          spectrum.getInterpolatedAmp(x / (spectrum.step ** (1))),
+          spectrum.getInterpolatedAmp(x * (spectrum.step ** (1)))];
+        let firstTwo = mean(...freqs.sort((a, b) => b - a).slice(0, 2));
+        containers[i%12] += Math.max(0, spectrum.getInterpolatedAmp(x) - firstTwo)*(4096/x);
+      });
+      return containers;
+      containers = containers.map((x,i) => ({note: myScale[i], amp: x}))  //TODO: this is not efective
+        .sort((a, b) => b.amp - a.amp);
+      console.log(containers);
+
+
+    }
+  },
+  beat: {name: "beat", fx: (spectrum, positions) => positions.beatPosition},
+  tatum: {name: "tatum", fx: (spectrum, positions) => positions.tatumPosition},
+  bar: {name: "bar", fx: (spectrum, positions) => positions.barPosition}
+}
+})
+
+
+/*config.graphical.outputs.push({   //midScreenSpectrum, todo: toto musí ísť doriti
+  input: (spectrum, positions) => {
+    return spectrum.tonalFrequencies.map((x) => {
+      let freqs = [spectrum.getInterpolatedAmp(x / (spectrum.step ** (1 / 2))),
+        spectrum.getInterpolatedAmp(x * (spectrum.step ** (1 / 2))),
+        spectrum.getInterpolatedAmp(x / (spectrum.step ** (1))),
+        spectrum.getInterpolatedAmp(x * (spectrum.step ** (1)))];
+      let firstTwo = mean(...freqs.sort((a, b) => b - a).slice(0, 2));
+      return Math.max(0, spectrum.getInterpolatedAmp(x) - firstTwo)*(4096/x);
+    });
+  }
+  ,
+  fx:notes => {
+    objects.push(new function () {
+      this.point = {x:100,y:800};
+      this.life = 1;
+      this.fx = () =>{
+        s.noFill();
+        s.strokeWeight(10);
+        notes.forEach((note, i)  => {
+          s.stroke(myScaleHues[i % 12], 100, 100);
+          s.line(this.point.x+i*40,this.point.y-s.noise(i/15,s.frameCount/63)*200,this.point.x+i*40,this.point.y-note*10-s.noise(i/16,s.frameCount/64)*200);
+
+          let whereFrom = polarToCartesianMidScreen(200,i*Math.PI/6/6); //7*1.0014
+          let whereTo = polarToCartesianMidScreen(200+note*10,i*Math.PI/6/6); //7*1.0014
+          //s.line(whereFrom.x,whereFrom.y,whereTo.x,whereTo.y);
+          //s.ellipse(where.x,where.y, 1+note*3);
+
+        });
+      }
+    })
+  }
+});
+
+config.graphical.outputs.push({   //midScreenSpectrum, todo: toto musí ísť doriti
+  input: (spectrum, positions) => positions.beatPosition,
+  fx:v => {
+    objects.push(new function () {
+      this.point = {x:100,y:800};
+      this.life = 1;
+      this.fx = () =>{
+        s.stroke(255);
+        s.noFill();
+        s.strokeWeight(1);
+        s.beginShape();
+        for(i=0;i<94;i++){
+          if(Math.abs(v*94-i)<1){
+            increment=-20;
+          }else if(Math.abs(v*94-i)<3){
+            increment=20;
+          }
+          else{
+            increment=0;
+          }
+          s.curveVertex(i*20,increment+s.height/2+s.noise(i/32)*800-400+s.noise(i,s.frameCount/16)*20);
+        }
+        s.endShape();
+      }
+    })
+  }
+})*/

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
     <meta charset="UTF-8">
     <title>Fourier</title>
     <script src="p5.min.js"></script>
@@ -8,6 +9,8 @@
     <script src="p5.sound.min.js"></script>
     <script src="bundle.js"></script>
     <script src='spotify-web-api.js'></script>
+    <script src='bootstrap-native-v4.min.js'></script>
+      <script src='polyfill.min.js'></script>
     <style>
         body {
             background-color: black;
@@ -25,8 +28,21 @@
     </style>
 </head>
 <body>
+<div id="controls">
+    <!--<button id="showControls" class="btn btn-outline-primary">Show controls</button>
+    -->
+    <button id="toggleDrawing" class="btn btn-outline-primary">Toggle drawing</button>
+
+        <select id="brushSelect">
+            <option value="flees">Flees</option>
+            <option value="pulses">Pulses</option>
+            <option value="path">Path</option>
+            <option value="tonalEqualizer">tonalEqualizer</option>
+        </select>
+    <input id="color" type="color" value="#4400FF">
+</div>
 <div id="login">
-    <button id="login-button" class="btn btn-primary">Log in with Spotify</button>
+    <button id="login-button" class="btn btn-outline-primary">Log in with Spotify</button>
 </div>
 <div id="loggedin">
     <div id="user-profile">
