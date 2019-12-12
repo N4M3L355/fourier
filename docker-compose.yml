@@ -1,0 +1,29 @@
+version: "3"
+
+services:
+
+  web:
+    build: .
+    image: main
+    restart: on-failure
+    command: npm start
+    labels:
+      traefik.frontend.rule: "Host:xn--krl-fla.com, www.xn--krl-fla.com"
+      traefik.docker.network: traefik_default
+
+
+
+  proxy:
+    image: traefik
+    command: --api --docker  # Enables the web UI and tells Træfik to listen to docker
+    ports:
+    - "80:80"
+    - "8080:8080" # The Web UI (enabled by --api)
+    volumes:
+    - "/var/run/docker.sock:/var/run/docker.sock"
+
+networks:
+  default:
+    external:
+      name: traefik_default
+
