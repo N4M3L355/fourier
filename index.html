@@ -33,25 +33,36 @@
     -->
     <button id="toggleDrawing" class="btn btn-outline-primary">Toggle drawing</button>
     <button id="eraseDrawing" class="btn btn-outline-danger">Erase drawing</button>
-    <input type="range" min="0" max="150" step="1" value="25" class="slider" id="noiseMultiplier">
-    <select id="brushSelect">
-        <option value="flees">Flees</option>
-        <option value="kopak">Frequencies around kick</option>
-        <option value="pulses">Pulses</option>
-        <option value="path">Path</option>
-        <option value="tonalEqualizer">tonalEqualizer</option>
-    </select>
-    <select id="symmetrySelect">
-        <option value="none">No symmetry</option>
-        <option value="midPoint">Point in the middle</option>
-        <option value="midXLine">X line in the middle</option>
-        <option value="midYLine">Y line in the middle</option>
-        <option value="midXYLines">XY lines in the middle</option>
-    </select>
-    <input id="color" type="color" value="#4400FF">
+    <form>
+        <label for="noiseMultiplier">Noise multiplier</label>
+        <input type="range" min="0" max="150" step="1" value="25" class="slider" id="noiseMultiplier">
+        <!--<label for="TTL">Time to live</label>
+        <input type="range" min="0" max="150" step="1" value="25" class="slider" id="TTL">
+        <label for="TTL">Brush size</label>
+        <input type="range" min="0" max="150" step="1" value="25" class="slider" id="brushSize">
+        -->
+        <select id="brushSelect">
+            <option value="flees">Flees</option>
+            <option value="energy">Frequencies around kick</option>
+            <option value="pulses">Pulses</option>
+            <option value="path">Path</option>
+            <option value="tonalEqualizer">Tonal Visualizer</option>
+        </select>
+        <select id="symmetrySelect">
+            <option value="none">No symmetry</option>
+            <option value="midPoint">Point in the middle</option>
+            <option value="midXLine">X line in the middle</option>
+            <option value="midYLine">Y line in the middle</option>
+            <option value="midXYLines">XY lines in the middle</option>
+        </select>
+        <input id="color" type="color" value="#4400FF">
+
+    </form>
+
 </div>
 <div id="login">
     <button id="login-button" class="btn btn-outline-primary">Log in with Spotify</button>
+    <button id="refreshSpotify" class="btn btn-outline-primary">Refresh Spotify</button>
 </div>
 <div id="loggedin">
     <div id="user-profile">

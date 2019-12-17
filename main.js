@@ -1,15 +1,20 @@
-//TODO: after end, the spotify data should refresh
-//TODO: manual refresh button for spotify
-//TODO: masking, fft na rytmus?, derivácia nôt?, time eventing
 //TODO: TTL slider
 //TODO: Difficulty chooser
 //TODO: distribute points evenly
 //TODO: Automatic drawer?
+//TODO: sections
+//TODO: brush size
+//TODO: export/import? (stačí setup.graphical.outputs)
+//TODO: Obal okolo kicku miesto abs hodnoty
+//TODO: masking, fft na rytmus?, derivácia nôt?, time eventing
 //TODO: specific options?
 
 
+//DONE: ten slider blbne
 //DONE: noiser 7/10
 //DONE: Eraser 3/10
+//DONE: after end, the spotify data should refresh 1/10
+//DONE: manual refresh button for spotify 1/1
 
 //How does this work: The brushes are functions(config.graphical,called with where it will be located([mouseX, mouseY] or path))
 // that return functions to array(config.output).
@@ -108,6 +113,7 @@ function spotifyInitializer() {
       url += '&state=' + encodeURIComponent(state);
       window.location = url;
     }, false);
+
   }
 }
 
@@ -210,11 +216,11 @@ new P5((s) => {
   config.setup = {
     getCurrentOutput: () => document.getElementById('brushSelect').value,
     getCurrentColor: () => document.getElementById('color').value,
-    getCurrentSymmetry: () =>document.getElementById('symmetrySelect').value,
-    getNoiseMultiplier: () =>document.getElementById('noiseMultiplier').value
+    getCurrentSymmetry: () => document.getElementById('symmetrySelect').value,
+    getNoiseMultiplier: () => document.getElementById('noiseMultiplier').value
   };
 
-  s.noisify = (v,n1,n2,shuffler=0, amount = (x) => x, densityFx = () => s.frameCount/256) => {
+  s.noisify = (v,n1,n2,shuffler=0, amount = (x) => x, densityFx = () => s.frameCount/384) => {
     return v+s.noise(
       densityFx()*(shuffler+1)+shuffler*100,
       (n1+densityFx())*(shuffler+2)/2,
@@ -228,13 +234,13 @@ new P5((s) => {
       fx: (spectrum, positions) => positions.beatPosition
     },
     kick: {
-      fx: (spectrum, positions) => spectrum.averageFrequencies(20,110)
+      fx: (spectrum, positions) => spectrum.averageFrequencies(20,110)/255
     },
     snare: {
-      fx: (spectrum, positions) => spectrum.averageFrequencies(4000,8000)
+      fx: (spectrum, positions) => spectrum.averageFrequencies(4000,8000)/255
     },
     bassline: {
-      fx: (spectrum, positions) => spectrum.averageFrequencies(110,220)
+      fx: (spectrum, positions) => spectrum.averageFrequencies(110,220)/255
     },
     notes: {
       fx: (spectrum, positions) => {
@@ -247,6 +253,9 @@ new P5((s) => {
           return Math.max(0, spectrum.getInterpolatedAmp(x) - firstTwo) * (4096 / x);
         });
       }
+    },
+    energy: {
+      fx: (spectrum, positions) => 0//spectrum.getEnergy()/255
     }
   };
 
@@ -255,15 +264,15 @@ new P5((s) => {
 
 
     brushes: {
-      kopak: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
+      energy: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
         name: "pulses",
-        input: () => config.inputValues.bassline,
+        input: () => config.inputValues.kick,
         fx: ((diameter,color) => v => {
           s.stroke(color);
           s.noFill();
           s.strokeWeight(1);
           //s.ellipse(x, y, (1 - Math.abs(1 - 2 * v)) ** 2 * 100)
-          s.ellipse(s.noisify(x,x,y,21/23), s.noisify(y,y,x,17/19), Math.max(0, v+diameter));
+          s.ellipse(s.noisify(x,x,y,21/23), s.noisify(y,y,x,17/19), Math.max(0, v*200+diameter));
         })(50+Math.random()*50, config.setup.getCurrentColor())
       })),
       pulses: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
@@ -307,7 +316,10 @@ new P5((s) => {
           let d = ((p) => ({x: p[0] - f.x, y: p[1] - f.y}))(a[i + 1]);
           items.forEach((x, j) => {
             s.stroke(myScaleHues[(Math.floor(v.length / a.length * i) + j) % 12], 100, 100);
-            s.ellipse(f.x + d.x * j / items.length, f.y + d.y * j / items.length, x * 5)
+            s.ellipse(
+              s.noisify(f.x + d.x * j / items.length),
+              s.noisify(f.y + d.y * j / items.length),
+              x * 5)
           });
         }
       })),
@@ -322,18 +334,20 @@ new P5((s) => {
             }
             objects.push(new function () {
               this.point = {x: x + Math.random() - 1 / 2, y: y + Math.random() - 1 / 2};
-              this.life = 30;
+              this.life = 15;
+              this.lifespan = this.life;
               this.color = s.color(color);
               this.fx = () => {
                 s.noStroke();
                 s.fill(
                   this.color._getHue()+ (s.noise(Date.now() / 4096 * 87 / 89, this.point.x, this.point.y) - 1 / 2) * 20,
                   this.color._getSaturation(),
-                  this.color._getBrightness()* (1 - (30 - this.life) / 30)
+                  this.color._getBrightness(),
+                  1 - (this.lifespan - this.life) / this.lifespan
                 );
                 s.ellipse(
-                  this.point.x + (s.noise(s.frameCount / 60 * 73 / 71 + 100, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((30 - this.life) / 30) * 600,
-                  this.point.y + (s.noise(s.frameCount / 60, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((30 - this.life) / 30) * 600,
+                  this.point.x + (s.noise(s.frameCount / 60 * 73 / 71 + 100, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((this.lifespan - this.life) / this.lifespan) * 600,
+                  this.point.y + (s.noise(s.frameCount / 60, this.point.x * 4, this.point.y * 4) - 1 / 2) * ((this.lifespan - this.life) / this.lifespan) * 600,
                   10);
               }
             });
@@ -371,13 +385,33 @@ new P5((s) => {
     fft.setInput(mic);
     s.stroke(255, 100, 0);
 
-    playerState = spotifyApi.getMyCurrentPlaybackState().then(state => {
+    let loadTrackStatus = function () {
+      playerState = spotifyApi.getMyCurrentPlaybackState().then(state => {
+        if(state===""||state.is_playing===false){
+          console.error("no track playing");
+          return;
+        }
+        state.realTimestamp = Date.now() - state.progress_ms;
+        return state;
+      }).catch(console.log);
+    };
 
-      state.realTimestamp = Date.now() - state.progress_ms;
-      return state;
-    });
-    trackAnalysis = playerState.then(state => spotifyApi.getAudioAnalysisForTrack(state.item.id).then(analysis => analysis)
-    );
+    document.getElementById('refreshSpotify').addEventListener('click', loadTrackStatus , false);
+
+    loadTrackStatus();
+
+    trackAnalysis = playerState.then(state => {
+      if(state===undefined) {
+        console.error("not logged in");
+        return
+      }
+      if(!state) {
+        console.error("no track playing");
+        return
+      }
+      return spotifyApi.getAudioAnalysisForTrack(state.item.id);
+      }
+    ).then(analysis => analysis);
 
   };
 
@@ -400,7 +434,6 @@ new P5((s) => {
     symmetricizedPoints(s,mouseBuffer).forEach(mouseBuffer =>
       config.graphical.outputs.push(...config.graphical.brushes[config.setup.getCurrentOutput()](mouseBuffer)));
     mouseBuffer = [];
-    return false;
   };
   s.mouseDragged = () => {
     if (recording) {
@@ -408,7 +441,31 @@ new P5((s) => {
         s.mouseX+Math.random()-1/2,
         s.mouseY+Math.random()-1/2]);
     }
-    return false;
+    if(s.mouseX<=s.width&&s.mouseX>=0&&s.mouseY<=s.height&&s.mouseY>=0){
+      return false;
+    }
+  };
+  s.touchStarted= () => {
+    recording = true;
+    if (s.getAudioContext().state !== 'running') { //chrome hack na resuming audio context
+      s.getAudioContext().resume();
+    }
+  };
+  s.touchEnded = () => {
+    recording = false;
+    symmetricizedPoints(s,mouseBuffer).forEach(mouseBuffer =>
+      config.graphical.outputs.push(...config.graphical.brushes[config.setup.getCurrentOutput()](mouseBuffer)));
+    mouseBuffer = [];
+  };
+  s.touchMoved = () => {
+    if (recording) {
+      if(s.mouseX<=s.width&&s.mouseX>=0&&s.mouseY<=s.height&&s.mouseY>=0) mouseBuffer.push([
+        s.mouseX+Math.random()-1/2,
+        s.mouseY+Math.random()-1/2]);
+    }
+    if(s.mouseX<=s.width&&s.mouseX>=0&&s.mouseY<=s.height&&s.mouseY>=0){
+      return false;
+    }
   };
   let drawMouseBuffer = (s, mouseBuffer) => {
     s.stroke(127);
@@ -421,7 +478,6 @@ new P5((s) => {
 
   let symmetricizedPoints = (s, points) => {
     let fxs = config.graphical.symmetries[config.setup.getCurrentSymmetry()];
-    console.log(points,fxs.map(fx => points.map(fx)));
     return [points,...fxs.map(fx => points.map(fx))];
   };
   /*---------------Draw cycle------------*/
@@ -454,7 +510,9 @@ new P5((s) => {
     /*---------------Spotify Processing------------*/
     playerState.then(function (playerState) {
       return trackAnalysis.then(function (trackAnalysis) {
-
+        if(!trackAnalysis){
+          return
+        }
         let getPresentObject = (objects) => objects && objects.filter(function (duration) {
           return duration.start < (Date.now() - playerState.realTimestamp) / 1000 &&
             (Date.now() - playerState.realTimestamp) / 1000 < duration.start + duration.duration
@@ -476,12 +534,6 @@ new P5((s) => {
       })
     })
 
-  };
-  /*-------------hacks--------------*/
-  s.touchStarted = () => {    //chrome hack na resuming audio context
-    if (s.getAudioContext().state !== 'running') {
-      s.getAudioContext().resume();
-    }
   };
 });
 
