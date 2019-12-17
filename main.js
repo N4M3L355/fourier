@@ -1,6 +1,15 @@
-//TODO: noiser,
+//TODO: after end, the spotify data should refresh
+//TODO: manual refresh button for spotify
 //TODO: masking, fft na rytmus?, derivácia nôt?, time eventing
-//TODO: symetrie
+//TODO: TTL slider
+//TODO: Difficulty chooser
+//TODO: distribute points evenly
+//TODO: Automatic drawer?
+//TODO: specific options?
+
+
+//DONE: noiser 7/10
+//DONE: Eraser 3/10
 
 //How does this work: The brushes are functions(config.graphical,called with where it will be located([mouseX, mouseY] or path))
 // that return functions to array(config.output).
@@ -87,7 +96,7 @@ function spotifyInitializer() {
     }
     document.getElementById('login-button').addEventListener('click', function () {
       let client_id = 'c37229f0961e4f60863ee0cdda8b68f0'; // Your client id
-      let redirect_uri = 'https://n4m3l355.github.io/fourier/index.html'; // Your redirect uri
+      let redirect_uri = 'http://localhost:63342/fourier/'; // Your redirect uri
       let state = generateRandomString(16);
       localStorage.setItem(stateKey, state);
       let scope = 'user-read-private user-read-email';
@@ -168,11 +177,17 @@ P5 = p5;    //constructors should be uppercased
 let config;
 
 new P5((s) => {
+
+
   let isLooping = true;
   document.getElementById('toggleDrawing').addEventListener('click', () => {
     isLooping ? s.noLoop() : s.loop();
     isLooping = !isLooping;
     return false;
+  });
+  document.getElementById('eraseDrawing').addEventListener('click', () => {
+    config.graphical.outputs = [];
+    //livingObjects = [];
   });
 
 
@@ -192,12 +207,34 @@ new P5((s) => {
   };
   let livingObjects = [];
   config = {};
+  config.setup = {
+    getCurrentOutput: () => document.getElementById('brushSelect').value,
+    getCurrentColor: () => document.getElementById('color').value,
+    getCurrentSymmetry: () =>document.getElementById('symmetrySelect').value,
+    getNoiseMultiplier: () =>document.getElementById('noiseMultiplier').value
+  };
+
+  s.noisify = (v,n1,n2,shuffler=0, amount = (x) => x, densityFx = () => s.frameCount/256) => {
+    return v+s.noise(
+      densityFx()*(shuffler+1)+shuffler*100,
+      (n1+densityFx())*(shuffler+2)/2,
+      (n2+densityFx())*(shuffler+3)/3)*(amount(config.setup.getNoiseMultiplier())*2)-amount(config.setup.getNoiseMultiplier());
+  };
 
   /*------------------Inputs for brushes-------------*/
 
   config.inputs = {
     beatPosition: {
       fx: (spectrum, positions) => positions.beatPosition
+    },
+    kick: {
+      fx: (spectrum, positions) => spectrum.averageFrequencies(20,110)
+    },
+    snare: {
+      fx: (spectrum, positions) => spectrum.averageFrequencies(4000,8000)
+    },
+    bassline: {
+      fx: (spectrum, positions) => spectrum.averageFrequencies(110,220)
     },
     notes: {
       fx: (spectrum, positions) => {
@@ -215,37 +252,51 @@ new P5((s) => {
 
   /*------------------Brushes-------------*/
   config.graphical = (s, objects) => ({
+
+
     brushes: {
-      pulses: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
+      kopak: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
         name: "pulses",
-        input: () => config.inputValues.beatPosition,
-        fx: (diameter => v => {
-          s.stroke(config.setup.getCurrentColor());
+        input: () => config.inputValues.bassline,
+        fx: ((diameter,color) => v => {
+          s.stroke(color);
           s.noFill();
           s.strokeWeight(1);
           //s.ellipse(x, y, (1 - Math.abs(1 - 2 * v)) ** 2 * 100)
-          s.ellipse(x, y, Math.max(0, diameter - 200 * v));
-        })(300 * Math.random())
+          s.ellipse(s.noisify(x,x,y,21/23), s.noisify(y,y,x,17/19), Math.max(0, v+diameter));
+        })(50+Math.random()*50, config.setup.getCurrentColor())
+      })),
+      pulses: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
+        name: "pulses",
+        input: () => config.inputValues.beatPosition,
+        fx: ((diameter,color) => v => {
+          s.stroke(color);
+          s.noFill();
+          s.strokeWeight(1);
+          //s.ellipse(x, y, (1 - Math.abs(1 - 2 * v)) ** 2 * 100)
+          s.ellipse(s.noisify(x,x,y,21/23), s.noisify(y,y,x,17/19), Math.max(0, diameter - 200 * v));
+        })(300 * Math.random(), config.setup.getCurrentColor())
       })),
       path: (mouseBuffer) => mouseBuffer.map(([x, y], i, a) => ({
         name: "path",
         input: () => config.inputValues.beatPosition,
-        fx: v => {
+        fx: (color => v => {
           let increment;
           if (Math.abs(v * a.length - i) < 1) {
             increment = 50;
           } else {
             increment = 0;
           }
-          s.stroke(config.setup.getCurrentColor());
+          s.stroke(color);
           s.noFill();
           if (i === 0) s.beginShape();
-          s.vertex(x + s.random(-increment, increment), y + s.random(-increment, increment));
+          s.vertex(s.noisify(x,x,y,25/27) + s.random(-increment, increment), s.noisify(y,x,y,27.29) + s.random(-increment, increment));
           if (i === a.length - 1) s.endShape();
         }
+        )(config.setup.getCurrentColor())
       })),
       tonalEqualizer: (mouseBuffer) => mouseBuffer.map(([x, y], i, a) => ({
-        name: "path",
+        name: "tonalEqualizer",
         input: () => config.inputValues.notes,
         fx: v => {    //z tohto chcem dať na každý úsek v.length/počet úsekov
           s.noFill();
@@ -264,7 +315,7 @@ new P5((s) => {
       flees: (mouseBuffer) => mouseBuffer.map(([x, y]) => ({
         name: "flees",
         input: () => config.inputValues.beatPosition,
-        fx: v => {
+        fx: (color => v => {
           if ((v < 1 / 8) || Math.random() < 1 / 64) {
             if (x < 0 || y < 0 || x > s.width || y > s.height) {
               return
@@ -272,7 +323,7 @@ new P5((s) => {
             objects.push(new function () {
               this.point = {x: x + Math.random() - 1 / 2, y: y + Math.random() - 1 / 2};
               this.life = 30;
-              this.color = s.color(config.setup.getCurrentColor());
+              this.color = s.color(color);
               this.fx = () => {
                 s.noStroke();
                 s.fill(
@@ -288,15 +339,18 @@ new P5((s) => {
             });
           }
         }
+        )(config.setup.getCurrentColor())
       }))
+    },
+    symmetries:{
+      none:  [],
+      midPoint:  [([x,y]) =>[s.width-x,s.height-y]],
+      midXLine:  [([x,y]) =>[x,s.height-y]],
+      midYLine: [([x,y]) => [s.width-x,y]],
+      midXYLines:[([x,y]) => [s.width-x,s.height-y],([x,y]) => [x,s.height-y],([x,y]) => [s.width-x,y]]
     },
     outputs: [],
   });
-  config.setup = {
-    getCurrentOutput: () => document.getElementById('brushSelect').value,
-    getCurrentColor: () => document.getElementById('color').value
-
-  };
 
 
   config.graphical = config.graphical(s, livingObjects);
@@ -309,7 +363,7 @@ new P5((s) => {
 
     s.rectMode(s.CORNERS);
     s.colorMode(s.HSB);
-    s.createCanvas(3508, 2480);
+    s.createCanvas(s.displayWidth, s.displayHeight);
     s.noFill();
     mic = new p5.AudioIn();
     mic.start();
@@ -332,20 +386,31 @@ new P5((s) => {
   let mouseBuffer = [];
   let recording = false;
 
+  s.mouseClicked = () => {
+    if(s.mouseX<=s.width&&s.mouseX>=0&&s.mouseY<=s.height&&s.mouseY>=0){
+      symmetricizedPoints(s,[[s.mouseX+Math.random()-1/2, s.mouseY+Math.random()-1/2]]).forEach(m =>
+        config.graphical.outputs.push(...config.graphical.brushes[config.setup.getCurrentOutput()](m)));
+    }
+  };
   s.mousePressed = () => {
     recording = true;
   };
   s.mouseReleased = () => {
     recording = false;
-    config.graphical.outputs.push(...config.graphical.brushes[config.setup.getCurrentOutput()](mouseBuffer));
+    symmetricizedPoints(s,mouseBuffer).forEach(mouseBuffer =>
+      config.graphical.outputs.push(...config.graphical.brushes[config.setup.getCurrentOutput()](mouseBuffer)));
     mouseBuffer = [];
     return false;
   };
   s.mouseDragged = () => {
-    if (recording) mouseBuffer.push([s.mouseX, s.mouseY]);
+    if (recording) {
+      if(s.mouseX<=s.width&&s.mouseX>=0&&s.mouseY<=s.height&&s.mouseY>=0) mouseBuffer.push([
+        s.mouseX+Math.random()-1/2,
+        s.mouseY+Math.random()-1/2]);
+    }
     return false;
   };
-  let drawMouseBuffer = (s) => {
+  let drawMouseBuffer = (s, mouseBuffer) => {
     s.stroke(127);
     s.noFill();
     s.strokeWeight(1);
@@ -354,10 +419,14 @@ new P5((s) => {
     s.endShape();
   };
 
+  let symmetricizedPoints = (s, points) => {
+    let fxs = config.graphical.symmetries[config.setup.getCurrentSymmetry()];
+    console.log(points,fxs.map(fx => points.map(fx)));
+    return [points,...fxs.map(fx => points.map(fx))];
+  };
   /*---------------Draw cycle------------*/
   s.draw = () => {
-    drawMouseBuffer(s);
-
+    symmetricizedPoints(s,mouseBuffer).forEach(x => drawMouseBuffer(s,x));
     s.background(0, 0, 0, 60 / 255);
     s.noStroke();
     s.noFill();
