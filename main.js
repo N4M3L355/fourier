@@ -106,7 +106,7 @@ function spotifyInitializer() {
       let redirect_uri = LOCAL?'http://localhost:63342/fourier/':"https://n4m3l355.github.io/fourier/"; // Your redirect uri
       let state = generateRandomString(16);
       localStorage.setItem(stateKey, state);
-      let scope = 'user-read-private user-read-email';
+      let scope = 'user-read-private user-read-email user-read-currently-playing user-read-playback-state';
       let url = 'https://accounts.spotify.com/authorize';
       url += '?response_type=token';
       url += '&client_id=' + encodeURIComponent(client_id);
