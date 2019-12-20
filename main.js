@@ -27,6 +27,7 @@ let out = (where => (...what) => {
   return what;
 })(document.getElementById("out"));
 
+let LOCAL = false;
 
 /*-------------General Statistics and Geometry Functions----------------*/
 
@@ -101,7 +102,8 @@ function spotifyInitializer() {
     }
     document.getElementById('login-button').addEventListener('click', function () {
       let client_id = 'c37229f0961e4f60863ee0cdda8b68f0'; // Your client id
-      let redirect_uri = 'http://localhost:63342/fourier/'; // Your redirect uri
+
+      let redirect_uri = LOCAL?'http://localhost:63342/fourier/':"https://n4m3l355.github.io/fourier/"; // Your redirect uri
       let state = generateRandomString(16);
       localStorage.setItem(stateKey, state);
       let scope = 'user-read-private user-read-email';
